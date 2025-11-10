@@ -42,6 +42,9 @@ export default function Navigation() {
                 Home
               </a>
             </Link>
+            <Link href="/stories">
+              <a className="text-foreground hover:text-primary transition-colors font-medium">Stories</a>
+            </Link>
             <Link href="/workers">
               <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
                 <Briefcase className="w-4 h-4" />

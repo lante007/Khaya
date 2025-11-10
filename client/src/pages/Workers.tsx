@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { MapPin, Star, Award, Briefcase, Search } from "lucide-react";
+import TrustBadge from "@/components/TrustBadge";
+import SocialProof from "@/components/SocialProof";
 import { Link } from "wouter";
 
 export default function Workers() {
@@ -85,12 +87,12 @@ export default function Workers() {
                           </CardDescription>
                         </div>
                       </div>
-                      {profile.verified && (
-                        <Badge className="bg-success/10 text-success border-success/20">
-                          <Award className="w-3 h-3 mr-1" />
-                          Verified
-                        </Badge>
-                      )}
+                      <TrustBadge 
+                        verified={profile.verified} 
+                        trustScore={profile.trustScore || 0}
+                        completedJobs={profile.completedJobs}
+                        size="sm"
+                      />
                     </div>
                   </CardHeader>
                   <CardContent>

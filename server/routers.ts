@@ -381,6 +381,93 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+  // Credits & Referrals
+  credits: router({
+    getBalance: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserCreditBalance(ctx.user.id);
+    }),
+    
+    getHistory: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserCredits(ctx.user.id);
+    }),
+  }),
+
+  referral: router({
+    create: protectedProcedure
+      .input(z.object({
+        referredEmail: z.string().email().optional(),
+        referredPhone: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const code = `${ctx.user.name?.substring(0, 3).toUpperCase() || 'REF'}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        return await db.createReferral({
+          referrerId: ctx.user.id,
+          referredEmail: input.referredEmail,
+          referredPhone: input.referredPhone,
+          referralCode: code,
+          status: 'pending',
+        });
+      }),
+
+    getMy: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserReferrals(ctx.user.id);
+    }),
+
+    applyCode: protectedProcedure
+      .input(z.object({ code: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const referral = await db.getReferralByCode(input.code);
+        if (!referral) throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid referral code' });
+        if (referral.referrerId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot use your own referral code' });
+        
+        await db.updateReferralStatus(referral.id, 'completed', ctx.user.id);
+        await db.addCredit({ userId: referral.referrerId, amount: referral.rewardAmount, type: 'referral', description: `Referral reward for ${ctx.user.name}`, relatedReferralId: referral.id });
+        await db.addCredit({ userId: ctx.user.id, amount: referral.rewardAmount, type: 'bonus', description: 'Welcome bonus from referral' });
+        await db.updateReferralStatus(referral.id, 'rewarded');
+        
+        return { success: true, reward: referral.rewardAmount };
+      }),
+  }),
+
+  // Community Stories
+  story: router({
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(5).max(200),
+        content: z.string().min(20),
+        type: z.enum(['success', 'testimonial', 'tip', 'experience']),
+        relatedJobId: z.number().optional(),
+        relatedWorkerId: z.number().optional(),
+        mediaUrl: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.createStory({
+          userId: ctx.user.id,
+          ...input,
+          approved: false,
+        });
+      }),
+
+    getApproved: publicProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ input }) => {
+        return await db.getApprovedStories(input.limit);
+      }),
+
+    getFeatured: publicProcedure.query(async () => {
+      return await db.getFeaturedStories();
+    }),
+
+    getMy: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserStories(ctx.user.id);
+    }),
+
+    like: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await db.likeStory(input.id);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

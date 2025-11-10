@@ -14,6 +14,8 @@ import Profile from "./pages/Profile";
 import JobDetail from "./pages/JobDetail";
 import WorkerDetail from "./pages/WorkerDetail";
 import MaterialDetail from "./pages/MaterialDetail";
+import Referrals from "./pages/Referrals";
+import Stories from "./pages/Stories";
 
 function Router() {
   return (
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/post-job" component={PostJob} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/profile" component={Profile} />
+      <Route path="/referrals" component={Referrals} />
+      <Route path="/stories" component={Stories} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

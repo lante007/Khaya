@@ -170,3 +170,60 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+/**
+ * User credits for referrals and rewards
+ */
+export const credits = mysqlTable("credits", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  amount: int("amount").notNull(), // Amount in cents (R50 = 5000)
+  type: mysqlEnum("type", ["referral", "reward", "bonus", "deduction"]).notNull(),
+  description: text("description"),
+  relatedReferralId: int("relatedReferralId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Credit = typeof credits.$inferSelect;
+export type InsertCredit = typeof credits.$inferInsert;
+
+/**
+ * Referral tracking system
+ */
+export const referrals = mysqlTable("referrals", {
+  id: int("id").autoincrement().primaryKey(),
+  referrerId: int("referrerId").notNull(), // User who sent the referral
+  referredId: int("referredId"), // User who signed up (null until they register)
+  referredEmail: varchar("referredEmail", { length: 320 }), // Email or phone of referred person
+  referredPhone: varchar("referredPhone", { length: 20 }),
+  status: mysqlEnum("status", ["pending", "completed", "rewarded"]).default("pending").notNull(),
+  referralCode: varchar("referralCode", { length: 20 }).notNull().unique(),
+  rewardAmount: int("rewardAmount").default(5000).notNull(), // R50 in cents
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = typeof referrals.$inferInsert;
+
+/**
+ * Community stories and testimonials
+ */
+export const stories = mysqlTable("stories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: mysqlEnum("type", ["success", "testimonial", "tip", "experience"]).default("testimonial").notNull(),
+  featured: boolean("featured").default(false).notNull(),
+  likes: int("likes").default(0).notNull(),
+  relatedJobId: int("relatedJobId"),
+  relatedWorkerId: int("relatedWorkerId"),
+  mediaUrl: text("mediaUrl"), // Photo or voice note URL
+  approved: boolean("approved").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Story = typeof stories.$inferSelect;
+export type InsertStory = typeof stories.$inferInsert;

@@ -74,5 +74,36 @@
 ## Testing & Deployment
 - [x] Test all user flows
 - [x] Verify mobile responsiveness
-- [ ] Create project checkpoint
+- [x] Create project checkpoint
 - [ ] Deploy to Manus platform
+
+## Phase 2: Advanced Features
+
+### Quick Wins
+- [ ] Add trust badges and verification indicators on worker profiles
+- [ ] Implement social proof nudges (e.g., "Trusted by X locals")
+- [ ] Build referral system with credit rewards
+- [ ] Enhanced search with scoring algorithms (match quality, distance, ratings)
+
+### Medium Complexity
+- [ ] Basic AI recommendation engine using user history
+- [ ] Community stories/testimonials section
+- [ ] WhatsApp integration for notifications
+
+### Branding Updates
+- [ ] Update app name to "ProjectKhaya.co.za"
+- [ ] Update all branding references
+- [ ] Configure custom domain in Manus dashboard
+
+
+## Completed Features (Phase 2)
+- [x] Updated branding to ProjectKhaya.co.za
+- [x] Added trust badges component
+- [x] Added social proof component
+- [x] Implemented referral system with credit rewards
+- [x] Created Stories navigation link
+- [x] Built community stories page
+- [x] Built referrals page with code generation
+- [x] Added credits tracking system
+- [x] Database schema extended with credits, referrals, and stories tables
+- [x] Backend API endpoints for all new features

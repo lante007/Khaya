@@ -4,7 +4,8 @@ import {
   InsertUser, users, profiles, InsertProfile, jobs, InsertJob, 
   bids, InsertBid, listings, InsertListing, reviews, InsertReview,
   milestones, InsertMilestone, messages, InsertMessage,
-  notifications, InsertNotification
+  notifications, InsertNotification, credits, InsertCredit,
+  referrals, InsertReferral, stories, InsertStory
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -428,4 +429,113 @@ export async function markNotificationAsRead(notificationId: number) {
 
   await db.update(notifications).set({ read: true }).where(eq(notifications.id, notificationId));
   return await db.select().from(notifications).where(eq(notifications.id, notificationId)).limit(1).then(r => r[0]);
+}
+
+
+// ===== Credits & Referrals =====
+
+export async function getUserCredits(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(credits).where(eq(credits.userId, userId)).orderBy(desc(credits.createdAt));
+}
+
+export async function getUserCreditBalance(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ total: sql<number>`SUM(${credits.amount})` })
+    .from(credits)
+    .where(eq(credits.userId, userId));
+  return result[0]?.total || 0;
+}
+
+export async function addCredit(credit: InsertCredit) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(credits).values(credit);
+  return result;
+}
+
+export async function createReferral(referral: InsertReferral) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(referrals).values(referral);
+  return result;
+}
+
+export async function getReferralByCode(code: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(referrals).where(eq(referrals.referralCode, code)).limit(1);
+  return result[0];
+}
+
+export async function getUserReferrals(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(referrals).where(eq(referrals.referrerId, userId)).orderBy(desc(referrals.createdAt));
+}
+
+export async function updateReferralStatus(id: number, status: "pending" | "completed" | "rewarded", referredId?: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const updateData: any = { status };
+  if (status === "completed" && referredId) {
+    updateData.referredId = referredId;
+    updateData.completedAt = new Date();
+  }
+  return await db.update(referrals).set(updateData).where(eq(referrals.id, id));
+}
+
+// ===== Community Stories =====
+
+export async function createStory(story: InsertStory) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(stories).values(story);
+  return result;
+}
+
+export async function getApprovedStories(limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(stories)
+    .where(eq(stories.approved, true))
+    .orderBy(desc(stories.createdAt))
+    .limit(limit);
+}
+
+export async function getFeaturedStories() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(stories)
+    .where(and(eq(stories.approved, true), eq(stories.featured, true)))
+    .orderBy(desc(stories.createdAt))
+    .limit(6);
+}
+
+export async function getUserStories(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(stories)
+    .where(eq(stories.userId, userId))
+    .orderBy(desc(stories.createdAt));
+}
+
+export async function approveStory(id: number, approved: boolean = true) {
+  const db = await getDb();
+  if (!db) return null;
+  return await db.update(stories).set({ approved }).where(eq(stories.id, id));
+}
+
+export async function toggleStoryFeatured(id: number, featured: boolean) {
+  const db = await getDb();
+  if (!db) return null;
+  return await db.update(stories).set({ featured }).where(eq(stories.id, id));
+}
+
+export async function likeStory(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  return await db.update(stories).set({ likes: sql`${stories.likes} + 1` }).where(eq(stories.id, id));
 }

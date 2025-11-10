@@ -15,6 +15,13 @@
       "when": 1762757437796,
       "tag": "0001_tiny_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1762760117091,
+      "tag": "0002_zippy_toxin",
+      "breakpoints": true
     }
   ]
 }
