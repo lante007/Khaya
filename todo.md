@@ -107,3 +107,32 @@
 - [x] Added credits tracking system
 - [x] Database schema extended with credits, referrals, and stories tables
 - [x] Backend API endpoints for all new features
+
+
+## Phase 3: AWS Serverless Migration
+
+### Architecture Changes
+- [x] Convert MySQL schema to DynamoDB tables
+- [x] Create DynamoDB table definitions
+- [ ] Refactor database queries for DynamoDB (NoSQL patterns)
+- [ ] Convert tRPC backend to Lambda handlers
+- [ ] Set up API Gateway integration
+- [ ] Configure S3 bucket for static hosting
+- [ ] Set up CloudFront distribution
+- [ ] Configure authentication for serverless (Cognito or custom)
+
+### Infrastructure as Code
+- [x] Create AWS SAM template or CDK configuration
+- [x] Define Lambda functions
+- [x] Define DynamoDB tables
+- [x] Configure API Gateway routes
+- [x] Set up S3 bucket policies
+- [x] Configure CloudFront settings
+
+### Deployment
+- [ ] Build optimized frontend bundle
+- [ ] Package Lambda functions
+- [ ] Deploy to AWS
+- [ ] Configure custom domain (ProjectKhaya.co.za)
+- [ ] Set up SSL certificate
+- [ ] Test all features in production
