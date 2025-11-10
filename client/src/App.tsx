@@ -18,6 +18,13 @@ import Referrals from "./pages/Referrals";
 import Stories from "./pages/Stories";
 import ProviderOnboard from "./pages/ProviderOnboard";
 import Showcase from "./pages/Showcase";
+import AboutUs from "./pages/AboutUs";
+import HowItWorks from "./pages/HowItWorks";
+import TrustSafety from "./pages/TrustSafety";
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
+import TermsPrivacy from "./pages/TermsPrivacy";
+import SMSSupport from "./pages/SMSSupport";
 
 function Router() {
   return (
@@ -36,6 +43,13 @@ function Router() {
       <Route path="/stories" component={Stories} />
       <Route path="/provider/onboard" component={ProviderOnboard} />
       <Route path="/showcase/:userId" component={Showcase} />
+      <Route path="/about" component={AboutUs} />
+      <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/trust-safety" component={TrustSafety} />
+      <Route path="/help" component={HelpCenter} />
+      <Route path="/contact" component={ContactUs} />
+      <Route path="/terms" component={TermsPrivacy} />
+      <Route path="/sms-support" component={SMSSupport} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
