@@ -11,10 +11,21 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
+
+export interface KhayaStackProps extends cdk.StackProps {
+  domainName?: string;
+  hostedZoneId?: string;
+}
 
 export class KhayaStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: KhayaStackProps) {
     super(scope, id, props);
+
+    const domainName = props?.domainName || 'projectkhaya.co.za';
+    const wwwDomainName = `www.${domainName}`;
 
     // ===== DynamoDB Tables (Pay-per-request for autonomous scaling) =====
     
@@ -156,20 +167,12 @@ export class KhayaStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // ===== Lambda Layer with Dependencies =====
-    
-    const depsLayer = new lambda.LayerVersion(this, 'DepsLayer', {
-      code: lambda.Code.fromAsset('aws-lambda/layers'),
-      compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
-      description: 'AWS SDK v3 and utility dependencies',
-    });
-
     // ===== Lambda Functions =====
     
     const apiLambda = new lambda.Function(this, 'ApiLambda', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset('aws-lambda/handlers'),
+      code: lambda.Code.fromAsset('../aws-lambda/dist'),
       environment: {
         USERS_TABLE: usersTable.tableName,
         PROFILES_TABLE: profilesTable.tableName,
@@ -183,10 +186,10 @@ export class KhayaStack extends cdk.Stack {
         STORAGE_BUCKET: storageBucket.bucketName,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
       },
-      layers: [depsLayer],
       timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
+      memorySize: 1024,
       reservedConcurrentExecutions: 100,
     });
 
@@ -222,6 +225,27 @@ export class KhayaStack extends cdk.Stack {
     const apiIntegration = new apigateway.LambdaIntegration(apiLambda);
     api.root.addProxy({ defaultIntegration: apiIntegration });
 
+    // ===== Route 53 Hosted Zone (if provided) =====
+    
+    let hostedZone: route53.IHostedZone | undefined;
+    if (props?.hostedZoneId) {
+      hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+        hostedZoneId: props.hostedZoneId,
+        zoneName: domainName,
+      });
+    }
+
+    // ===== SSL Certificate for Custom Domain =====
+    
+    let certificate: acm.ICertificate | undefined;
+    if (hostedZone) {
+      certificate = new acm.Certificate(this, 'Certificate', {
+        domainName: domainName,
+        subjectAlternativeNames: [wwwDomainName],
+        validation: acm.CertificateValidation.fromDns(hostedZone),
+      });
+    }
+
     // ===== Frontend S3 Bucket + CloudFront =====
     
     const frontendBucket = new s3.Bucket(this, 'KhayaFrontendBucket', {
@@ -238,28 +262,86 @@ export class KhayaStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
+    // CloudFront Origin Access Identity for secure S3 access
+    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
+      comment: 'OAI for Khaya frontend bucket',
+    });
+
+    frontendBucket.grantRead(originAccessIdentity);
+
+    // CloudFront distribution with custom domain and SSL
     const distribution = new cloudfront.Distribution(this, 'KhayaCDN', {
       defaultBehavior: {
-        origin: new origins.S3Origin(frontendBucket),
+        origin: new origins.S3Origin(frontendBucket, {
+          originAccessIdentity,
+        }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         compress: true,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+      },
+      additionalBehaviors: {
+        '/api/*': {
+          origin: new origins.RestApiOrigin(api),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        },
       },
       defaultRootObject: 'index.html',
-      errorResponses: [{
-        httpStatus: 404,
-        responseHttpStatus: 200,
-        responsePagePath: '/index.html',
-      }],
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(5),
+        },
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(5),
+        },
+      ],
       enabled: true,
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      // Add custom domain and certificate if available
+      domainNames: certificate && hostedZone ? [domainName, wwwDomainName] : undefined,
+      certificate: certificate || undefined,
     });
+
+    // ===== Route 53 DNS Records =====
+    
+    if (hostedZone) {
+      // A record for apex domain
+      new route53.ARecord(this, 'AliasRecord', {
+        zone: hostedZone,
+        recordName: domainName,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.CloudFrontTarget(distribution)
+        ),
+      });
+
+      // A record for www subdomain
+      new route53.ARecord(this, 'WwwAliasRecord', {
+        zone: hostedZone,
+        recordName: wwwDomainName,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.CloudFrontTarget(distribution)
+        ),
+      });
+    }
 
     // ===== EventBridge for Scheduled Tasks =====
     
     const dailyTasksLambda = new lambda.Function(this, 'DailyTasksLambda', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'daily.handler',
-      code: lambda.Code.fromAsset('aws-lambda/handlers'),
+      code: lambda.Code.fromAsset('../aws-lambda/handlers'),
       environment: {
         JOBS_TABLE: jobsTable.tableName,
         LISTINGS_TABLE: listingsTable.tableName,
@@ -281,31 +363,67 @@ export class KhayaStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'APIUrl', {
       value: api.url,
       description: 'API Gateway URL',
+      exportName: 'KhayaAPIUrl',
     });
 
     new cdk.CfnOutput(this, 'CDNUrl', {
-      value: `https://${distribution.distributionDomainName}`,
+      value: certificate && hostedZone 
+        ? `https://${domainName}` 
+        : `https://${distribution.distributionDomainName}`,
       description: 'CloudFront Distribution URL',
+      exportName: 'KhayaCDNUrl',
+    });
+
+    new cdk.CfnOutput(this, 'DistributionId', {
+      value: distribution.distributionId,
+      description: 'CloudFront Distribution ID (for cache invalidation)',
+      exportName: 'KhayaDistributionId',
     });
 
     new cdk.CfnOutput(this, 'UserPoolId', {
       value: userPool.userPoolId,
       description: 'Cognito User Pool ID',
+      exportName: 'KhayaUserPoolId',
     });
 
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
       description: 'Cognito User Pool Client ID',
+      exportName: 'KhayaUserPoolClientId',
     });
 
     new cdk.CfnOutput(this, 'FrontendBucket', {
       value: frontendBucket.bucketName,
       description: 'S3 Frontend Bucket Name',
+      exportName: 'KhayaFrontendBucket',
     });
 
     new cdk.CfnOutput(this, 'StorageBucket', {
       value: storageBucket.bucketName,
       description: 'S3 Storage Bucket Name',
+      exportName: 'KhayaStorageBucket',
     });
+
+    if (certificate) {
+      new cdk.CfnOutput(this, 'CertificateArn', {
+        value: certificate.certificateArn,
+        description: 'SSL Certificate ARN',
+        exportName: 'KhayaCertificateArn',
+      });
+    }
+
+    if (hostedZone) {
+      new cdk.CfnOutput(this, 'HostedZoneId', {
+        value: hostedZone.hostedZoneId,
+        description: 'Route 53 Hosted Zone ID',
+        exportName: 'KhayaHostedZoneId',
+      });
+
+      new cdk.CfnOutput(this, 'DomainName', {
+        value: domainName,
+        description: 'Custom Domain Name',
+        exportName: 'KhayaDomainName',
+      });
+    }
   }
 }

@@ -1,0 +1,51 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "4ae29b0fd63361d2386e24e8bc1b8451389a151a5c2fba3f3a70b6461e30da59": {
+      "displayName": "ApiLambda/Code",
+      "source": {
+        "path": "asset.4ae29b0fd63361d2386e24e8bc1b8451389a151a5c2fba3f3a70b6461e30da59",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "615608124862-us-east-1-f073fce6": {
+          "bucketName": "cdk-hnb659fds-assets-615608124862-us-east-1",
+          "objectKey": "4ae29b0fd63361d2386e24e8bc1b8451389a151a5c2fba3f3a70b6461e30da59.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615608124862:role/cdk-hnb659fds-file-publishing-role-615608124862-us-east-1"
+        }
+      }
+    },
+    "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6": {
+      "displayName": "KhayaStack/Custom::S3AutoDeleteObjectsCustomResourceProvider Code",
+      "source": {
+        "path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "615608124862-us-east-1-5662d869": {
+          "bucketName": "cdk-hnb659fds-assets-615608124862-us-east-1",
+          "objectKey": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615608124862:role/cdk-hnb659fds-file-publishing-role-615608124862-us-east-1"
+        }
+      }
+    },
+    "55bb9ee56475b97af1c864141004774f9585c16a3a1add3c7d29d3a77b1f5123": {
+      "displayName": "KhayaStack Template",
+      "source": {
+        "path": "KhayaStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "615608124862-us-east-1-b1329434": {
+          "bucketName": "cdk-hnb659fds-assets-615608124862-us-east-1",
+          "objectKey": "55bb9ee56475b97af1c864141004774f9585c16a3a1add3c7d29d3a77b1f5123.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615608124862:role/cdk-hnb659fds-file-publishing-role-615608124862-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

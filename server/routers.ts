@@ -3,7 +3,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import * as db from "./db";
+// Use DynamoDB for serverless deployment
+import * as db from "./db-dynamodb";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -27,7 +28,7 @@ export const appRouter = router({
   // Profile Management
   profile: router({
     get: protectedProcedure
-      .input(z.object({ userId: z.number().optional() }))
+      .input(z.object({ userId: z.string().optional() }))
       .query(async ({ ctx, input }) => {
         const userId = input.userId || ctx.user.id;
         return await db.getProfileByUserId(userId);
