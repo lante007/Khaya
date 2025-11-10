@@ -1,0 +1,161 @@
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl, APP_TITLE } from "@/const";
+import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut } from "lucide-react";
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+
+export default function Navigation() {
+  const { user, isAuthenticated, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      logout();
+      window.location.href = "/";
+    },
+  });
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  return (
+    <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
+      <div className="container">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/">
+            <div className="flex items-center gap-2 cursor-pointer">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl">
+                K
+              </div>
+              <span className="text-xl font-bold text-foreground">{APP_TITLE}</span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/">
+              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+                <Home className="w-4 h-4" />
+                Home
+              </a>
+            </Link>
+            <Link href="/workers">
+              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Find Workers
+              </a>
+            </Link>
+            <Link href="/materials">
+              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Materials
+              </a>
+            </Link>
+            <Link href="/jobs">
+              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Browse Jobs
+              </a>
+            </Link>
+          </div>
+
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <Link href="/post-job">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Post a Job
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button variant="ghost" onClick={handleLogout} className="flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button asChild>
+                <a href={getLoginUrl()}>Sign In</a>
+              </Button>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden p-2 text-foreground"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-border">
+            <div className="flex flex-col gap-4">
+              <Link href="/">
+                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                  <Home className="w-4 h-4" />
+                  Home
+                </a>
+              </Link>
+              <Link href="/workers">
+                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                  <Briefcase className="w-4 h-4" />
+                  Find Workers
+                </a>
+              </Link>
+              <Link href="/materials">
+                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                  <Package className="w-4 h-4" />
+                  Materials
+                </a>
+              </Link>
+              <Link href="/jobs">
+                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                  <Briefcase className="w-4 h-4" />
+                  Browse Jobs
+                </a>
+              </Link>
+              
+              {isAuthenticated ? (
+                <>
+                  <Link href="/post-job">
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <PlusCircle className="w-4 h-4" />
+                      Post a Job
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <User className="w-4 h-4" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-2">
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <Button asChild className="w-full">
+                  <a href={getLoginUrl()}>Sign In</a>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
