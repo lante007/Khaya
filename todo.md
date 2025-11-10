@@ -136,3 +136,43 @@
 - [ ] Configure custom domain (ProjectKhaya.co.za)
 - [ ] Set up SSL certificate
 - [ ] Test all features in production
+
+
+## Phase 4: Provider Features & Lambda Migration
+
+### Provider Onboarding
+- [x] Create multi-step provider onboarding wizard
+- [x] Add skills selection interface
+- [x] Build portfolio upload component
+- [x] Create offerings/gig management
+- [x] Add provider showcase page
+- [x] Implement share functionality
+
+### Lambda Handlers
+- [x] Convert auth router to Lambda handler
+- [x] Convert profile router to Lambda handler
+- [x] Convert jobs router to Lambda handler
+- [x] Convert bids router to Lambda handler
+- [x] Convert listings router to Lambda handler
+- [x] Convert reviews router to Lambda handler
+- [x] Convert referrals router to Lambda handler
+- [x] Convert stories router to Lambda handler
+- [x] Convert credits router to Lambda handler
+
+### DynamoDB Integration
+- [x] Create DynamoDB client wrapper
+- [x] Implement user queries
+- [x] Implement profile queries
+- [x] Implement job queries
+- [x] Implement bid queries
+- [x] Implement listing queries
+- [x] Implement review queries
+- [x] Implement referral queries
+- [x] Implement story queries
+- [x] Implement credit queries
+
+### Frontend for S3
+- [ ] Configure for static export
+- [ ] Update API endpoints to API Gateway
+- [ ] Build production bundle
+- [ ] Optimize assets for CloudFront

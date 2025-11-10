@@ -41,6 +41,14 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
+            <div className="mt-6">
+              <Link href="/provider/onboard">
+                <Button variant="link" className="text-base">
+                  <Users className="w-4 h-4 mr-2" />
+                  Are you a worker or supplier? Join as a Provider →
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
