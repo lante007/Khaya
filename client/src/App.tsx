@@ -16,6 +16,8 @@ import WorkerDetail from "./pages/WorkerDetail";
 import MaterialDetail from "./pages/MaterialDetail";
 import Referrals from "./pages/Referrals";
 import Stories from "./pages/Stories";
+import ProviderOnboard from "./pages/ProviderOnboard";
+import Showcase from "./pages/Showcase";
 
 function Router() {
   return (
@@ -32,6 +34,8 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/referrals" component={Referrals} />
       <Route path="/stories" component={Stories} />
+      <Route path="/provider/onboard" component={ProviderOnboard} />
+      <Route path="/showcase/:userId" component={Showcase} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

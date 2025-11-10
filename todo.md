@@ -107,3 +107,72 @@
 - [x] Added credits tracking system
 - [x] Database schema extended with credits, referrals, and stories tables
 - [x] Backend API endpoints for all new features
+
+
+## Phase 3: AWS Serverless Migration
+
+### Architecture Changes
+- [x] Convert MySQL schema to DynamoDB tables
+- [x] Create DynamoDB table definitions
+- [ ] Refactor database queries for DynamoDB (NoSQL patterns)
+- [ ] Convert tRPC backend to Lambda handlers
+- [ ] Set up API Gateway integration
+- [ ] Configure S3 bucket for static hosting
+- [ ] Set up CloudFront distribution
+- [ ] Configure authentication for serverless (Cognito or custom)
+
+### Infrastructure as Code
+- [x] Create AWS SAM template or CDK configuration
+- [x] Define Lambda functions
+- [x] Define DynamoDB tables
+- [x] Configure API Gateway routes
+- [x] Set up S3 bucket policies
+- [x] Configure CloudFront settings
+
+### Deployment
+- [ ] Build optimized frontend bundle
+- [ ] Package Lambda functions
+- [ ] Deploy to AWS
+- [ ] Configure custom domain (ProjectKhaya.co.za)
+- [ ] Set up SSL certificate
+- [ ] Test all features in production
+
+
+## Phase 4: Provider Features & Lambda Migration
+
+### Provider Onboarding
+- [x] Create multi-step provider onboarding wizard
+- [x] Add skills selection interface
+- [x] Build portfolio upload component
+- [x] Create offerings/gig management
+- [x] Add provider showcase page
+- [x] Implement share functionality
+
+### Lambda Handlers
+- [x] Convert auth router to Lambda handler
+- [x] Convert profile router to Lambda handler
+- [x] Convert jobs router to Lambda handler
+- [x] Convert bids router to Lambda handler
+- [x] Convert listings router to Lambda handler
+- [x] Convert reviews router to Lambda handler
+- [x] Convert referrals router to Lambda handler
+- [x] Convert stories router to Lambda handler
+- [x] Convert credits router to Lambda handler
+
+### DynamoDB Integration
+- [x] Create DynamoDB client wrapper
+- [x] Implement user queries
+- [x] Implement profile queries
+- [x] Implement job queries
+- [x] Implement bid queries
+- [x] Implement listing queries
+- [x] Implement review queries
+- [x] Implement referral queries
+- [x] Implement story queries
+- [x] Implement credit queries
+
+### Frontend for S3
+- [ ] Configure for static export
+- [ ] Update API endpoints to API Gateway
+- [ ] Build production bundle
+- [ ] Optimize assets for CloudFront

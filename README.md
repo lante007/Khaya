@@ -163,6 +163,8 @@ The application uses tRPC for type-safe API communication. Main routers include:
 
 ## Deployment
 
+### Option 1: Manus Platform (Current)
+
 The application is deployed on the Manus platform with automatic CI/CD:
 
 1. Push code to GitHub
@@ -175,6 +177,29 @@ The platform handles:
 - File storage
 - OAuth configuration
 - Environment variables
+
+### Option 2: AWS Serverless (Production Ready)
+
+Fully serverless architecture for autonomous scaling:
+
+**Quick Deploy:**
+```bash
+./deploy-aws.sh
+```
+
+**Architecture:**
+- Frontend: S3 + CloudFront CDN
+- Backend: Lambda + API Gateway
+- Database: DynamoDB
+- Auth: Cognito
+- Region: af-south-1 (Johannesburg)
+
+**Cost Estimates:**
+- Free Tier: R0/month (first 12 months)
+- Production (1,000 users): R250-500/month
+- Scale (10,000 users): R800-1,200/month
+
+**Full Documentation:** See [AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md)
 
 ## Contributing
 
