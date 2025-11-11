@@ -26,7 +26,7 @@ Parameters:
   FrontendUrl:
     Type: String
     Description: Frontend URL for CORS and redirects
-    Default: https://khaya.co.za
+    Default: https://projectkhaya.co.za
 
 Resources:
   # API Gateway
