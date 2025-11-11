@@ -127,7 +127,7 @@
 
 ```bash
 # Set Paystack key
-export PAYSTACK_SECRET_KEY="sk_live_your_key"
+export PAYSTACK_SECRET_KEY="PAYSTACK_SECRET_KEY_HERE_key"
 
 # Deploy
 cd backend

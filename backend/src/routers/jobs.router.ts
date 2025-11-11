@@ -269,11 +269,12 @@ export const jobsRouter = router({
       return { success: true };
     }),
 
-  // Mark job as completed
+  // Mark job as completed WITH PHOTO PROOF
   complete: clientOnlyProcedure
     .input(z.object({
       jobId: z.string(),
-      rating: z.number().min(1).max(5),
+      proofUrl: z.string().url(), // S3 photo URL - REQUIRED
+      rating: z.number().min(1).max(5).optional(),
       review: z.string().optional()
     }))
     .mutation(async ({ ctx, input }) => {
@@ -303,18 +304,72 @@ export const jobsRouter = router({
         });
       }
 
+      if (!job.escrowHeld) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No escrow payment found for this job'
+        });
+      }
+
+      // Get payment record
+      const payments = await queryItems({
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: {
+          ':pk': `JOB#${input.jobId}`
+        }
+      });
+
+      const payment = payments.find(p => p.status === 'completed' && !p.released);
+
+      if (!payment) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'No unreleased payment found for this job'
+        });
+      }
+
+      if (!payment.proofNeeded) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Photo proof not required for this payment'
+        });
+      }
+
+      // Calculate payout: 95% to worker, 5% platform fee
+      const escrowAmount = payment.escrowAmount || payment.amount;
+      const platformFee = escrowAmount * 0.05;
+      const workerAmount = escrowAmount * 0.95;
+
+      // Update job with proof and completion
       await updateItem(
         { PK: `JOB#${input.jobId}`, SK: 'METADATA' },
         {
           status: 'completed',
           completedAt: new Date().toISOString(),
+          proofUrl: input.proofUrl,
+          proofSubmittedAt: new Date().toISOString(),
           clientRating: input.rating,
           clientReview: input.review,
+          escrowReleased: true,
           GSI2PK: 'STATUS#completed'
         }
       );
 
-      // Update worker stats
+      // Release payment - mark as released
+      await updateItem(
+        { PK: `PAYMENT#${payment.paymentId}`, SK: 'METADATA' },
+        {
+          released: true,
+          releasedAt: new Date().toISOString(),
+          platformFee,
+          workerAmount,
+          proofUrl: input.proofUrl,
+          proofVerified: true
+        }
+      );
+
+      // Update worker balance and stats
       if (job.assignedWorkerId) {
         const worker = await getItem({
           PK: `USER#${job.assignedWorkerId}`,
@@ -322,12 +377,16 @@ export const jobsRouter = router({
         });
 
         if (worker) {
-          const newReviewCount = (worker.reviewCount || 0) + 1;
-          const newRating = ((worker.rating || 0) * (worker.reviewCount || 0) + input.rating) / newReviewCount;
+          const newReviewCount = input.rating ? (worker.reviewCount || 0) + 1 : (worker.reviewCount || 0);
+          const newRating = input.rating 
+            ? ((worker.rating || 0) * (worker.reviewCount || 0) + input.rating) / newReviewCount
+            : (worker.rating || 0);
           
           await updateItem(
             { PK: `USER#${job.assignedWorkerId}`, SK: 'PROFILE' },
             {
+              balance: (worker.balance || 0) + workerAmount,
+              totalEarnings: (worker.totalEarnings || 0) + workerAmount,
               rating: newRating,
               reviewCount: newReviewCount,
               completedJobs: (worker.completedJobs || 0) + 1
@@ -336,6 +395,12 @@ export const jobsRouter = router({
         }
       }
 
-      return { success: true };
+      return { 
+        success: true,
+        released: true,
+        netPaid: workerAmount,
+        fee: platformFee,
+        proofUrl: input.proofUrl
+      };
     })
 });

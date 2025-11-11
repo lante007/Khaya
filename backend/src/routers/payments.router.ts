@@ -361,8 +361,19 @@ export const paymentsRouter = router({
       // Handle different webhook events
       switch (input.event) {
         case 'charge.success':
-          // Payment successful
+          // Payment successful - HOLD IN ESCROW
           const reference = input.data.reference;
+          const metadata = input.data.metadata || {};
+          const jobId = metadata.jobId;
+          const buyerId = metadata.userId;
+          const amount = input.data.amount / 100; // Convert kobo to ZAR
+
+          if (!jobId || !buyerId) {
+            console.error('Missing jobId or buyerId in webhook metadata');
+            break;
+          }
+
+          // Find payment record
           const payments = await queryItems({
             FilterExpression: 'paystackReference = :ref',
             ExpressionAttributeValues: {
@@ -372,15 +383,53 @@ export const paymentsRouter = router({
 
           if (payments.length > 0) {
             const payment = payments[0];
+            
+            // Update payment to completed but NOT released
             await updateItem(
               { PK: `PAYMENT#${payment.paymentId}`, SK: 'METADATA' },
               {
                 status: 'completed',
                 completedAt: new Date().toISOString(),
                 paidAt: input.data.paid_at,
-                verifiedAmount: input.data.amount / 100
+                verifiedAmount: amount,
+                escrowAmount: amount,
+                released: false,
+                proofNeeded: true
               }
             );
+
+            // Update job status to in-progress
+            await updateItem(
+              { PK: `JOB#${jobId}`, SK: 'METADATA' },
+              {
+                status: 'in_progress',
+                startedAt: new Date().toISOString(),
+                escrowHeld: true,
+                escrowAmount: amount,
+                GSI2PK: 'STATUS#in_progress'
+              }
+            );
+
+            // Get buyer details for SMS notification
+            const buyer = await getItem({
+              PK: `USER#${buyerId}`,
+              SK: 'PROFILE'
+            });
+
+            if (buyer && buyer.phone) {
+              // Send SMS notification to buyer
+              const { sendSMSOTP } = await import('../lib/twilio.js');
+              const message = `Job started! Payment of R${amount.toFixed(2)} is held securely. Once work is complete, submit photo proof to release payment to the worker. - Project Khaya`;
+              
+              try {
+                await sendSMSOTP(buyer.phone, message);
+                console.log(`SMS sent to buyer ${buyerId} for job ${jobId}`);
+              } catch (error) {
+                console.error('Failed to send SMS:', error);
+              }
+            }
+
+            console.log(`Escrow held: R${amount} for job ${jobId}`);
           }
           break;
 

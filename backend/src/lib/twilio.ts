@@ -109,3 +109,27 @@ export function formatPhoneNumber(phone: string): string {
   // Add +27 prefix
   return `+27${phone}`;
 }
+
+/**
+ * Send job notification SMS
+ */
+export async function sendJobNotification(params: {
+  phone: string;
+  message: string;
+}): Promise<boolean> {
+  try {
+    const formattedPhone = formatPhoneNumber(params.phone);
+    
+    const message = await client.messages.create({
+      body: params.message,
+      from: config.twilioWhatsAppNumber.replace('whatsapp:', ''),
+      to: formattedPhone
+    });
+    
+    console.log(`Job notification sent: ${message.sid}`);
+    return true;
+  } catch (error) {
+    console.error('Job notification error:', error);
+    return false;
+  }
+}

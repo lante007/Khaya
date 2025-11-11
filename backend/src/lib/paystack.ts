@@ -252,3 +252,135 @@ export function verifyWebhookSignature(payload: string, signature: string): bool
   
   return hash === signature;
 }
+
+/**
+ * Create transfer recipient (bank account)
+ */
+export async function createTransferRecipient(params: {
+  name: string;
+  accountNumber: string;
+  bankCode: string;
+  currency?: string;
+}): Promise<{
+  recipientCode: string;
+  details: any;
+}> {
+  const response = await paystackRequest('/transferrecipient', 'POST', {
+    type: 'nuban',
+    name: params.name,
+    account_number: params.accountNumber,
+    bank_code: params.bankCode,
+    currency: params.currency || 'ZAR'
+  });
+  
+  if (!response.status) {
+    throw new Error(`Paystack error: ${response.message}`);
+  }
+  
+  return {
+    recipientCode: response.data.recipient_code,
+    details: response.data
+  };
+}
+
+/**
+ * Initiate transfer to bank account
+ */
+export async function initiateTransfer(params: {
+  amount: number; // in kobo (ZAR cents)
+  recipientCode: string;
+  reason: string;
+  reference?: string;
+}): Promise<{
+  transferCode: string;
+  status: string;
+  reference: string;
+}> {
+  const reference = params.reference || `transfer_${Date.now()}`;
+  
+  const response = await paystackRequest('/transfer', 'POST', {
+    source: 'balance',
+    amount: params.amount,
+    recipient: params.recipientCode,
+    reason: params.reason,
+    reference
+  });
+  
+  if (!response.status) {
+    throw new Error(`Paystack error: ${response.message}`);
+  }
+  
+  return {
+    transferCode: response.data.transfer_code,
+    status: response.data.status,
+    reference: response.data.reference
+  };
+}
+
+/**
+ * Verify transfer status
+ */
+export async function verifyTransfer(reference: string): Promise<{
+  status: 'success' | 'failed' | 'pending' | 'reversed';
+  amount: number;
+  recipient: any;
+}> {
+  const response = await paystackRequest(`/transfer/verify/${reference}`);
+  
+  if (!response.status) {
+    throw new Error(`Paystack error: ${response.message}`);
+  }
+  
+  return {
+    status: response.data.status,
+    amount: response.data.amount,
+    recipient: response.data.recipient
+  };
+}
+
+/**
+ * List South African banks
+ */
+export async function listBanks(): Promise<Array<{
+  name: string;
+  code: string;
+  slug: string;
+}>> {
+  const response = await paystackRequest('/bank?currency=ZAR');
+  
+  if (!response.status) {
+    throw new Error(`Paystack error: ${response.message}`);
+  }
+  
+  return response.data.map((bank: any) => ({
+    name: bank.name,
+    code: bank.code,
+    slug: bank.slug
+  }));
+}
+
+/**
+ * Resolve bank account details
+ */
+export async function resolveAccountNumber(params: {
+  accountNumber: string;
+  bankCode: string;
+}): Promise<{
+  accountNumber: string;
+  accountName: string;
+  bankId: number;
+}> {
+  const response = await paystackRequest(
+    `/bank/resolve?account_number=${params.accountNumber}&bank_code=${params.bankCode}`
+  );
+  
+  if (!response.status) {
+    throw new Error(`Paystack error: ${response.message}`);
+  }
+  
+  return {
+    accountNumber: response.data.account_number,
+    accountName: response.data.account_name,
+    bankId: response.data.bank_id
+  };
+}

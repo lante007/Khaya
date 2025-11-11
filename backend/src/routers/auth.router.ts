@@ -126,72 +126,7 @@ export const authRouter = router({
       };
     }),
 
-  /**
-   * Verify OTP
-   */
-  verifyOTP: publicProcedure
-    .input(verifyOTPSchema)
-    .mutation(async ({ input }) => {
-      // Check OTP
-      const stored = otpStore.get(input.userId);
-      if (!stored) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'No OTP found. Please request a new one.'
-        });
-      }
-      
-      if (Date.now() > stored.expiresAt) {
-        otpStore.delete(input.userId);
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'OTP expired. Please request a new one.'
-        });
-      }
-      
-      if (stored.otp !== input.otp) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Invalid OTP'
-        });
-      }
-      
-      // OTP verified, clear it
-      otpStore.delete(input.userId);
-      
-      // Get user profile
-      const user = await getItem({ PK: `USER#${input.userId}`, SK: 'PROFILE' });
-      if (!user) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'User not found'
-        });
-      }
-      
-      // Update user as verified
-      await updateItem(
-        { PK: `USER#${input.userId}`, SK: 'PROFILE' },
-        {
-          verified: true,
-          phoneVerified: true,
-          updatedAt: timestamp()
-        }
-      );
-      
-      // Generate token
-      const token = generateToken({
-        userId: input.userId,
-        userType: user.userType,
-        email: user.email
-      });
-      
-      return {
-        verified: true,
-        token,
-        profileId: input.userId,
-        userType: user.userType
-      };
-    }),
+
 
   /**
    * Sign In
@@ -276,6 +211,166 @@ export const authRouter = router({
           code: 'UNAUTHORIZED',
           message: 'Invalid refresh token'
         });
+      }
+    }),
+
+  /**
+   * Request OTP (for email/phone login)
+   */
+  requestOTP: publicProcedure
+    .input(z.object({
+      email: z.string().email().optional(),
+      phone: z.string().optional()
+    }))
+    .mutation(async ({ input }) => {
+      // Validate at least one identifier provided
+      if (!input.email && !input.phone) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Email or phone number required'
+        });
+      }
+
+      let user;
+      let identifier: string = '';
+
+      // Find user by email or phone
+      if (input.email) {
+        const users = await queryByGSI('GSI1', 'GSI1PK', `EMAIL#${input.email.toLowerCase()}`);
+        user = users[0];
+        identifier = input.email;
+      } else if (input.phone) {
+        const formattedPhone = formatPhoneNumber(input.phone);
+        const users = await queryByGSI('GSI1', 'GSI1PK', `PHONE#${formattedPhone}`);
+        user = users[0];
+        identifier = formattedPhone;
+      }
+
+      // Generate OTP (whether user exists or not - don't leak user existence)
+      const otp = generateOTP();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      
+      if (user) {
+        // Store OTP for existing user
+        otpStore.set(user.userId, { otp, expiresAt });
+        
+        // Send OTP via phone (prefer phone over email)
+        if (user.phone) {
+          const otpResult = await sendOTP(user.phone, otp);
+          return {
+            success: otpResult.success,
+            method: otpResult.method,
+            isNewUser: false,
+            ...(config.environment === 'development' && { devOtp: otp })
+          };
+        }
+      } else {
+        // New user - store OTP with identifier
+        otpStore.set(identifier, { otp, expiresAt });
+      }
+
+      // For now, return success (in production, send email OTP)
+      return {
+        success: true,
+        method: 'email' as const,
+        isNewUser: !user,
+        ...(config.environment === 'development' && { devOtp: otp })
+      };
+    }),
+
+  /**
+   * Verify OTP
+   */
+  verifyOTP: publicProcedure
+    .input(z.object({
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
+      otp: z.string().length(6)
+    }))
+    .mutation(async ({ input }) => {
+      // Validate at least one identifier provided
+      if (!input.email && !input.phone) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Email or phone number required'
+        });
+      }
+
+      let user;
+      let identifier: string = '';
+
+      // Find user by email or phone
+      if (input.email) {
+        const users = await queryByGSI('GSI1', 'GSI1PK', `EMAIL#${input.email.toLowerCase()}`);
+        user = users[0];
+        identifier = input.email;
+      } else if (input.phone) {
+        const formattedPhone = formatPhoneNumber(input.phone);
+        const users = await queryByGSI('GSI1', 'GSI1PK', `PHONE#${formattedPhone}`);
+        user = users[0];
+        identifier = formattedPhone;
+      }
+
+      // Check OTP
+      const storedOTP = user ? otpStore.get(user.userId) : otpStore.get(identifier);
+      
+      if (!storedOTP) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'OTP expired or not found. Please request a new one.'
+        });
+      }
+
+      if (storedOTP.expiresAt < Date.now()) {
+        otpStore.delete(user ? user.userId : identifier);
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'OTP expired. Please request a new one.'
+        });
+      }
+
+      if (storedOTP.otp !== input.otp) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid OTP. Please try again.'
+        });
+      }
+
+      // OTP is valid - clear it
+      otpStore.delete(user ? user.userId : identifier);
+
+      if (user) {
+        // Existing user - mark as verified and return token
+        await updateItem(
+          { PK: `USER#${user.userId}`, SK: 'PROFILE' },
+          { phoneVerified: true, verified: true }
+        );
+
+        const token = generateToken({
+          userId: user.userId,
+          userType: user.userType,
+          email: user.email
+        });
+
+        return {
+          success: true,
+          isNewUser: false,
+          token,
+          user: {
+            userId: user.userId,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            userType: user.userType
+          }
+        };
+      } else {
+        // New user - return success and let them complete signup
+        return {
+          success: true,
+          isNewUser: true,
+          identifier: identifier
+        };
       }
     }),
 

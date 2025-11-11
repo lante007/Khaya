@@ -44,16 +44,16 @@ export const bedrockClient = new BedrockRuntimeClient({ region });
 // Environment Variables
 export const config = {
   region,
-  dynamoDbTable: process.env.DYNAMODB_TABLE || 'ProjectKhaya-dev',
-  cognitoUserPoolId: process.env.USER_POOL_ID || '',
+  dynamoDbTable: process.env.DYNAMODB_TABLE_NAME || process.env.DYNAMODB_TABLE || 'ProjectKhaya-dev',
+  cognitoUserPoolId: process.env.COGNITO_USER_POOL_ID || process.env.USER_POOL_ID || '',
   cognitoClientId: process.env.COGNITO_CLIENT_ID || '',
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
-  twilioWhatsAppNumber: process.env.TWILIO_WHATSAPP_NUMBER || '',
+  twilioWhatsAppNumber: process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER || '',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || '',
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  environment: process.env.ENVIRONMENT || 'dev'
+  environment: process.env.NODE_ENV || process.env.ENVIRONMENT || 'dev'
 };
 
 export default config;

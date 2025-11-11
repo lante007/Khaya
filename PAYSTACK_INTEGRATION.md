@@ -19,7 +19,7 @@ The backend now uses **Paystack** for all payment processing instead of Yoco.
 
 From your Paystack Dashboard:
 - **Test Secret Key**: `sk_test_xxxxx` (for development)
-- **Live Secret Key**: `sk_live_xxxxx` (for production)
+- **Live Secret Key**: `PAYSTACK_SECRET_KEY_HERE` (for production)
 - **Public Key**: `pk_test_xxxxx` or `pk_live_xxxxx`
 
 ### 3. Set Environment Variables
@@ -29,7 +29,7 @@ From your Paystack Dashboard:
 export PAYSTACK_SECRET_KEY="sk_test_your_key_here"
 
 # For production deployment
-export PAYSTACK_SECRET_KEY="sk_live_your_key_here"
+export PAYSTACK_SECRET_KEY="PAYSTACK_SECRET_KEY_HERE_key_here"
 ```
 
 ---

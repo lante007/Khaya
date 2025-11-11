@@ -40,7 +40,7 @@
 
 ```bash
 # 1. Set your Paystack API key
-export YOCO_SECRET_KEY="sk_live_your_key_here"
+export YOCO_SECRET_KEY="PAYSTACK_SECRET_KEY_HERE_key_here"
 
 # 2. Deploy backend
 cd backend

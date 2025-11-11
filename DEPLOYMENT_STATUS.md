@@ -65,7 +65,7 @@
 
 ```bash
 # Set your Paystack key
-export PAYSTACK_SECRET_KEY="sk_live_your_key_here"
+export PAYSTACK_SECRET_KEY="PAYSTACK_SECRET_KEY_HERE_key_here"
 
 # Deploy
 cd backend
@@ -190,7 +190,7 @@ The code is complete but needs:
 
 ```bash
 # 1. Set credentials
-export PAYSTACK_SECRET_KEY="sk_live_xxx"
+export PAYSTACK_SECRET_KEY="PAYSTACK_SECRET_KEY_HERE"
 export AWS_REGION="af-south-1"
 
 # 2. Deploy everything
