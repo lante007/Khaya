@@ -28,6 +28,9 @@ import TermsPrivacy from "./pages/TermsPrivacy";
 import SMSSupport from "./pages/SMSSupport";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminJobs from "./pages/AdminJobs";
+import AdminPayments from "./pages/AdminPayments";
 
 function Router() {
   return (
@@ -59,6 +62,9 @@ function Router() {
       <Route path="/sms-support" component={SMSSupport} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/jobs" component={AdminJobs} />
+      <Route path="/admin/payments" component={AdminPayments} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
