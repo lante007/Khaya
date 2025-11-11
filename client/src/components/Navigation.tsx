@@ -25,7 +25,7 @@ export default function Navigation() {
       <div className="container">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/">
+          <Link to="/">
             <div className="flex items-center gap-2 cursor-pointer">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl">
                 K
@@ -36,28 +36,28 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/">
+            <Link to="/">
               <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
                 <Home className="w-4 h-4" />
                 Home
               </a>
             </Link>
-            <Link href="/stories">
+            <Link to="/stories">
               <a className="text-foreground hover:text-primary transition-colors font-medium">Stories</a>
             </Link>
-            <Link href="/workers">
+            <Link to="/workers">
               <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
                 <Briefcase className="w-4 h-4" />
                 Find Workers
               </a>
             </Link>
-            <Link href="/materials">
+            <Link to="/materials">
               <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 Materials
               </a>
             </Link>
-            <Link href="/jobs">
+            <Link to="/jobs">
               <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
                 <Briefcase className="w-4 h-4" />
                 Browse Jobs
@@ -69,13 +69,13 @@ export default function Navigation() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <Link href="/post-job">
+                <Link to="/post-job">
                   <Button variant="outline" className="flex items-center gap-2">
                     <PlusCircle className="w-4 h-4" />
                     Post a Job
                   </Button>
                 </Link>
-                <Link href="/dashboard">
+                <Link to="/dashboard">
                   <Button variant="outline" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Dashboard
@@ -87,9 +87,18 @@ export default function Navigation() {
                 </Button>
               </>
             ) : (
-              <Button asChild>
-                <a href={getLoginUrl()}>Sign In</a>
-              </Button>
+              <>
+                <Link to="/auth?mode=signin">
+                  <Button variant="ghost">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth?role=buyer&mode=signup">
+                  <Button>
+                    Get Started
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
@@ -106,25 +115,25 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-4">
-              <Link href="/">
+              <Link to="/">
                 <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
                   <Home className="w-4 h-4" />
                   Home
                 </a>
               </Link>
-              <Link href="/workers">
+              <Link to="/workers">
                 <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
                   <Briefcase className="w-4 h-4" />
                   Find Workers
                 </a>
               </Link>
-              <Link href="/materials">
+              <Link to="/materials">
                 <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
                   <Package className="w-4 h-4" />
                   Materials
                 </a>
               </Link>
-              <Link href="/jobs">
+              <Link to="/jobs">
                 <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
                   <Briefcase className="w-4 h-4" />
                   Browse Jobs
@@ -133,13 +142,13 @@ export default function Navigation() {
               
               {isAuthenticated ? (
                 <>
-                  <Link href="/post-job">
+                  <Link to="/post-job">
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <PlusCircle className="w-4 h-4" />
                       Post a Job
                     </Button>
                   </Link>
-                  <Link href="/dashboard">
+                  <Link to="/dashboard">
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <User className="w-4 h-4" />
                       Dashboard
@@ -151,9 +160,18 @@ export default function Navigation() {
                   </Button>
                 </>
               ) : (
-                <Button asChild className="w-full">
-                  <a href={getLoginUrl()}>Sign In</a>
-                </Button>
+                <>
+                  <Link to="/auth?mode=signin">
+                    <Button variant="outline" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/auth?role=buyer&mode=signup">
+                    <Button className="w-full">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>

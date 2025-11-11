@@ -120,7 +120,7 @@ export default function Workers() {
                             </span>
                           )}
                         </div>
-                        <Link href={`/workers/${user.id}`}>
+                        <Link to={`/workers/${user.id}`}>
                           <Button size="sm">View Profile</Button>
                         </Link>
                       </div>

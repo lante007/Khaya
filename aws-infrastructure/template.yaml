@@ -1,0 +1,377 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Project Khaya - AWS-Native Multi-Role Platform
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 512
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DYNAMODB_TABLE: !Ref ProjectKhayaTable
+        USER_POOL_ID: !Ref CognitoUserPool
+        COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+        WELCOME_EMAIL_TOPIC: !Ref WelcomeEmailTopic
+        VERIFICATION_QUEUE_TOPIC: !Ref VerificationQueueTopic
+
+Resources:
+  # ==================== COGNITO ====================
+  
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ProjectKhaya-${Environment}
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+        - phone_number
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: phone_number
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: name
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: role
+          AttributeDataType: String
+          Mutable: false
+        - Name: location
+          AttributeDataType: String
+          Mutable: true
+        - Name: skills
+          AttributeDataType: String
+          Mutable: true
+        - Name: businessReg
+          AttributeDataType: String
+          Mutable: true
+        - Name: verified
+          AttributeDataType: String
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationFunction.Arn
+      UserPoolTags:
+        Environment: !Ref Environment
+        Project: ProjectKhaya
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ProjectKhaya-Client-${Environment}
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  # Cognito Groups
+  BuyerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Buyer
+      Description: Buyers who post jobs and purchase materials
+      UserPoolId: !Ref CognitoUserPool
+      Precedence: 3
+
+  WorkerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Worker
+      Description: Service providers who bid on jobs
+      UserPoolId: !Ref CognitoUserPool
+      Precedence: 2
+
+  SellerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Seller
+      Description: Material suppliers and retailers
+      UserPoolId: !Ref CognitoUserPool
+      Precedence: 2
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Admin
+      Description: Platform administrators
+      UserPoolId: !Ref CognitoUserPool
+      Precedence: 1
+
+  # ==================== DYNAMODB ====================
+  
+  ProjectKhayaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ProjectKhaya-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI3
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: ProjectKhaya
+
+  # ==================== SNS TOPICS ====================
+  
+  WelcomeEmailTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ProjectKhaya-WelcomeEmail-${Environment}
+      DisplayName: Welcome Email Notifications
+
+  VerificationQueueTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ProjectKhaya-VerificationQueue-${Environment}
+      DisplayName: User Verification Queue
+
+  # ==================== LAMBDA FUNCTIONS ====================
+  
+  # Buyer Signup
+  SignupBuyerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ProjectKhaya-SignupBuyer-${Environment}
+      CodeUri: ../aws-lambda/signup-buyer/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectKhayaTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt WelcomeEmailTopic.TopicName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !GetAtt CognitoUserPool.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /signup/buyer
+            Method: POST
+
+  # Worker Signup
+  SignupWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ProjectKhaya-SignupWorker-${Environment}
+      CodeUri: ../aws-lambda/signup-worker/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectKhayaTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt WelcomeEmailTopic.TopicName
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt VerificationQueueTopic.TopicName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !GetAtt CognitoUserPool.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /signup/worker
+            Method: POST
+
+  # Post-Confirmation Trigger
+  PostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ProjectKhaya-PostConfirmation-${Environment}
+      InlineCode: |
+        exports.handler = async (event) => {
+          console.log('Post-confirmation event:', JSON.stringify(event, null, 2));
+          // Update DynamoDB to mark email as verified
+          return event;
+        };
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectKhayaTable
+
+  PostConfirmationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PostConfirmationFunction
+      Principal: cognito-idp.amazonaws.com
+      Action: lambda:InvokeFunction
+      SourceArn: !GetAtt CognitoUserPool.Arn
+
+  # ==================== API GATEWAY ====================
+  
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ProjectKhaya-API-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+
+  # ==================== S3 BUCKETS ====================
+  
+  PortfolioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub projectkhaya-portfolios-${Environment}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ProductImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub projectkhaya-products-${Environment}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolId
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientId
+
+  ApiEndpoint:
+    Description: API Gateway Endpoint
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+
+  DynamoDBTable:
+    Description: DynamoDB Table Name
+    Value: !Ref ProjectKhayaTable
+    Export:
+      Name: !Sub ${AWS::StackName}-TableName

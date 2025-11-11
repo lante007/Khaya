@@ -1,0 +1,115 @@
+{
+  "UserPoolName": "ProjectKhayaUsers",
+  "Policies": {
+    "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireUppercase": true,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": false
+    }
+  },
+  "Schema": [
+    {
+      "Name": "email",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "phone_number",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "name",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "role",
+      "AttributeDataType": "String",
+      "DeveloperOnlyAttribute": false,
+      "Mutable": false,
+      "Required": false,
+      "StringAttributeConstraints": {
+        "MinLength": "1",
+        "MaxLength": "20"
+      }
+    },
+    {
+      "Name": "location",
+      "AttributeDataType": "String",
+      "DeveloperOnlyAttribute": false,
+      "Mutable": true,
+      "Required": false,
+      "StringAttributeConstraints": {
+        "MinLength": "1",
+        "MaxLength": "500"
+      }
+    },
+    {
+      "Name": "skills",
+      "AttributeDataType": "String",
+      "DeveloperOnlyAttribute": false,
+      "Mutable": true,
+      "Required": false,
+      "StringAttributeConstraints": {
+        "MinLength": "1",
+        "MaxLength": "2048"
+      }
+    },
+    {
+      "Name": "businessReg",
+      "AttributeDataType": "String",
+      "DeveloperOnlyAttribute": false,
+      "Mutable": true,
+      "Required": false,
+      "StringAttributeConstraints": {
+        "MinLength": "1",
+        "MaxLength": "100"
+      }
+    },
+    {
+      "Name": "verified",
+      "AttributeDataType": "String",
+      "DeveloperOnlyAttribute": false,
+      "Mutable": true,
+      "Required": false,
+      "StringAttributeConstraints": {
+        "MinLength": "1",
+        "MaxLength": "10"
+      }
+    }
+  ],
+  "AutoVerifiedAttributes": ["email", "phone_number"],
+  "MfaConfiguration": "OPTIONAL",
+  "UserPoolGroups": [
+    {
+      "GroupName": "Buyer",
+      "Description": "Buyers who post jobs and purchase materials",
+      "Precedence": 3
+    },
+    {
+      "GroupName": "Worker",
+      "Description": "Service providers who bid on jobs",
+      "Precedence": 2
+    },
+    {
+      "GroupName": "Seller",
+      "Description": "Material suppliers and retailers",
+      "Precedence": 2
+    },
+    {
+      "GroupName": "Admin",
+      "Description": "Platform administrators",
+      "Precedence": 1
+    }
+  ],
+  "LambdaTriggers": {
+    "PostConfirmation": "arn:aws:lambda:REGION:ACCOUNT:function:PostSignupHandler",
+    "PreSignUp": "arn:aws:lambda:REGION:ACCOUNT:function:PreSignupValidator"
+  }
+}

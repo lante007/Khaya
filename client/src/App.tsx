@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Auth from "./pages/Auth";
 import Workers from "./pages/Workers";
 import Materials from "./pages/Materials";
 import Jobs from "./pages/Jobs";
@@ -18,11 +19,22 @@ import Referrals from "./pages/Referrals";
 import Stories from "./pages/Stories";
 import ProviderOnboard from "./pages/ProviderOnboard";
 import Showcase from "./pages/Showcase";
+import AboutUs from "./pages/AboutUs";
+import HowItWorks from "./pages/HowItWorks";
+import TrustSafety from "./pages/TrustSafety";
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
+import TermsPrivacy from "./pages/TermsPrivacy";
+import SMSSupport from "./pages/SMSSupport";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/auth" component={Auth} />
+      <Route path="/join" component={Auth} />
+      <Route path="/login" component={Auth} />
+      <Route path="/signup" component={Auth} />
       <Route path="/workers" component={Workers} />
       <Route path="/workers/:id" component={WorkerDetail} />
       <Route path="/materials" component={Materials} />
@@ -36,20 +48,31 @@ function Router() {
       <Route path="/stories" component={Stories} />
       <Route path="/provider/onboard" component={ProviderOnboard} />
       <Route path="/showcase/:userId" component={Showcase} />
+      <Route path="/about" component={AboutUs} />
+      <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/trust-safety" component={TrustSafety} />
+      <Route path="/help" component={HelpCenter} />
+      <Route path="/contact" component={ContactUs} />
+      <Route path="/terms" component={TermsPrivacy} />
+      <Route path="/sms-support" component={SMSSupport} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
+import { AuthProvider } from "./contexts/AuthContext";
+
 function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
