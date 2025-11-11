@@ -6,6 +6,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { CreateAWSLambdaContextOptions } from '@trpc/server/adapters/aws-lambda';
 import jwt from 'jsonwebtoken';
+import superjson from 'superjson';
 import { config } from './config/aws.js';
 
 // Context type
@@ -44,8 +45,10 @@ export function createContext({
   return {};
 }
 
-// Initialize tRPC
-const t = initTRPC.context<Context>().create();
+// Initialize tRPC with superjson transformer
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+});
 
 // Export router and procedures
 export const router = t.router;
