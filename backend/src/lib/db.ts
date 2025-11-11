@@ -30,10 +30,10 @@ export async function putItem(item: DbItem) {
 /**
  * Get item from DynamoDB
  */
-export async function getItem(PK: string, SK: string) {
+export async function getItem(key: { PK: string; SK: string }) {
   const command = new GetCommand({
     TableName: TABLE_NAME,
-    Key: { PK, SK }
+    Key: key
   });
   
   const result = await docClient.send(command);
@@ -87,8 +87,7 @@ export async function queryByGSI(
  * Update item in DynamoDB
  */
 export async function updateItem(
-  PK: string,
-  SK: string,
+  key: { PK: string; SK: string },
   updates: Record<string, any>
 ) {
   const updateExpressions: string[] = [];
@@ -105,7 +104,7 @@ export async function updateItem(
   
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
-    Key: { PK, SK },
+    Key: key,
     UpdateExpression: `SET ${updateExpressions.join(', ')}`,
     ExpressionAttributeNames: expressionAttributeNames,
     ExpressionAttributeValues: expressionAttributeValues,
@@ -119,14 +118,27 @@ export async function updateItem(
 /**
  * Delete item from DynamoDB
  */
-export async function deleteItem(PK: string, SK: string) {
+export async function deleteItem(key: { PK: string; SK: string }) {
   const command = new DeleteCommand({
     TableName: TABLE_NAME,
-    Key: { PK, SK }
+    Key: key
   });
   
   await docClient.send(command);
   return true;
+}
+
+/**
+ * Query items with custom parameters
+ */
+export async function queryItems(params: any) {
+  const command = new QueryCommand({
+    TableName: TABLE_NAME,
+    ...params
+  });
+  
+  const result = await docClient.send(command);
+  return result.Items || [];
 }
 
 /**

@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
-import { putItem, getItem, queryByGSI, generateId, timestamp } from '../lib/db.js';
+import { putItem, getItem, updateItem, queryByGSI, generateId, timestamp } from '../lib/db.js';
 import { sendOTP, generateOTP, formatPhoneNumber, validatePhoneNumber } from '../lib/twilio.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -160,7 +160,7 @@ export const authRouter = router({
       otpStore.delete(input.userId);
       
       // Get user profile
-      const user = await getItem(`USER#${input.userId}`, 'PROFILE');
+      const user = await getItem({ PK: `USER#${input.userId}`, SK: 'PROFILE' });
       if (!user) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -169,12 +169,14 @@ export const authRouter = router({
       }
       
       // Update user as verified
-      await putItem({
-        ...user,
-        verified: true,
-        phoneVerified: true,
-        updatedAt: timestamp()
-      });
+      await updateItem(
+        { PK: `USER#${input.userId}`, SK: 'PROFILE' },
+        {
+          verified: true,
+          phoneVerified: true,
+          updatedAt: timestamp()
+        }
+      );
       
       // Generate token
       const token = generateToken({
@@ -286,7 +288,7 @@ export const authRouter = router({
     }))
     .mutation(async ({ input }) => {
       // Get user
-      const user = await getItem(`USER#${input.userId}`, 'PROFILE');
+      const user = await getItem({ PK: `USER#${input.userId}`, SK: 'PROFILE' });
       if (!user) {
         throw new TRPCError({
           code: 'NOT_FOUND',

@@ -31,7 +31,7 @@ async function paystackRequest(
     body: body ? JSON.stringify(body) : undefined
   });
   
-  return response.json();
+  return response.json() as Promise<PaystackResponse>;
 }
 
 /**

@@ -25,12 +25,16 @@
     "twilio": "^5.0.0",
     "uuid": "^9.0.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "aws-jwt-verify": "^4.0.1",
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/aws-lambda": "^8.10.131",
+    "@types/uuid": "^9.0.7",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0",
     "vitest": "^1.2.0",

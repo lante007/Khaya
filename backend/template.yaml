@@ -1,0 +1,231 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Khaya Backend API - tRPC on AWS Lambda
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 512
+    Environment:
+      Variables:
+        NODE_ENV: production
+        DYNAMODB_TABLE_NAME: !Ref KhayaTable
+        COGNITO_USER_POOL_ID: !Ref KhayaUserPool
+        COGNITO_CLIENT_ID: !Ref KhayaUserPoolClient
+        S3_BUCKET_NAME: !Ref KhayaUploadsBucket
+        PAYSTACK_SECRET_KEY: !Ref PaystackSecretKey
+        FRONTEND_URL: !Ref FrontendUrl
+
+Parameters:
+  PaystackSecretKey:
+    Type: String
+    Description: Paystack API Secret Key
+    NoEcho: true
+  
+  FrontendUrl:
+    Type: String
+    Description: Frontend URL for CORS and redirects
+    Default: https://khaya.co.za
+
+Resources:
+  # API Gateway
+  KhayaApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${FrontendUrl}'"
+        AllowCredentials: true
+
+  # Lambda Function
+  KhayaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/server.handler
+      Events:
+        ApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KhayaApi
+            Path: /trpc/{proxy+}
+            Method: ANY
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KhayaTable
+        - S3CrudPolicy:
+            BucketName: !Ref KhayaUploadsBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminUpdateUserAttributes
+              Resource: !GetAtt KhayaUserPool.Arn
+
+  # DynamoDB Table
+  KhayaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: khaya-prod
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: production
+        - Key: Application
+          Value: Khaya
+
+  # Cognito User Pool
+  KhayaUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: khaya-users-prod
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+        - Name: name
+          Required: true
+          Mutable: true
+        - Name: userType
+          AttributeDataType: String
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+
+  # Cognito User Pool Client
+  KhayaUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: khaya-web-client
+      UserPoolId: !Ref KhayaUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: hours
+        IdToken: hours
+
+  # S3 Bucket for uploads
+  KhayaUploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'khaya-uploads-${AWS::AccountId}'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !Ref FrontendUrl
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldUploads
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpirationInDays: 30
+
+  # S3 Bucket Policy
+  KhayaUploadsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref KhayaUploadsBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${KhayaUploadsBucket.Arn}/*'
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${KhayaApi}.execute-api.${AWS::Region}.amazonaws.com/prod/trpc'
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref KhayaUserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref KhayaUserPoolClient
+
+  UploadsBucketName:
+    Description: S3 Uploads Bucket Name
+    Value: !Ref KhayaUploadsBucket
+
+  DynamoDBTableName:
+    Description: DynamoDB Table Name
+    Value: !Ref KhayaTable

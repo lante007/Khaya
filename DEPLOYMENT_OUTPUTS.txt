@@ -1,0 +1,45 @@
+================================================================================
+                    KHAYA BACKEND - DEPLOYED! ✅
+================================================================================
+
+API URL:
+https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc
+
+COGNITO USER POOL:
+User Pool ID: us-east-1_1iwRbFuVi
+Client ID: 6mr44snsb06qcsrfsdm2j7061o
+
+S3 BUCKET:
+khaya-uploads-615608124862
+
+DYNAMODB TABLE:
+khaya-prod
+
+REGION:
+us-east-1
+
+STACK NAME:
+project-khaya-api
+
+================================================================================
+NEXT STEPS:
+================================================================================
+
+1. Create .env.production for frontend:
+   VITE_API_URL=https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc
+   VITE_AWS_REGION=us-east-1
+   VITE_COGNITO_USER_POOL_ID=us-east-1_1iwRbFuVi
+   VITE_COGNITO_CLIENT_ID=6mr44snsb06qcsrfsdm2j7061o
+
+2. Create first admin:
+   cd backend
+   export ADMIN_EMAIL="admin@khaya.co.za"
+   export ADMIN_NAME="Super Admin"
+   export ADMIN_PASSWORD="YourPassword123"
+   export DYNAMODB_TABLE_NAME="khaya-prod"
+   export AWS_REGION="us-east-1"
+   ./scripts/seed-admin.sh
+
+3. Deploy frontend (push to GitHub for Amplify auto-deploy)
+
+================================================================================
