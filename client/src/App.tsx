@@ -26,6 +26,8 @@ import HelpCenter from "./pages/HelpCenter";
 import ContactUs from "./pages/ContactUs";
 import TermsPrivacy from "./pages/TermsPrivacy";
 import SMSSupport from "./pages/SMSSupport";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function Router() {
   return (
@@ -55,6 +57,9 @@ function Router() {
       <Route path="/contact" component={ContactUs} />
       <Route path="/terms" component={TermsPrivacy} />
       <Route path="/sms-support" component={SMSSupport} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin" component={AdminLogin} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

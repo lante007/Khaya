@@ -6,11 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Shield, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,19 +20,12 @@ export default function AdminLogin() {
       localStorage.setItem("adminToken", data.token);
       localStorage.setItem("adminUser", JSON.stringify(data.admin));
       
-      toast({
-        title: "Welcome back!",
-        description: `Logged in as ${data.admin.name}`,
-      });
+      toast.success(`Welcome back! Logged in as ${data.admin.name}`);
       
       setLocation("/admin/dashboard");
     },
     onError: (error) => {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Login failed: ${error.message}`);
       setIsLoading(false);
     },
   });

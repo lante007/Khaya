@@ -4,11 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Users, Briefcase, DollarSign, TrendingUp, LogOut, Shield } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
 
   // Check if admin is logged in
   useEffect(() => {

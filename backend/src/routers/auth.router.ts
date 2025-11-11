@@ -8,6 +8,7 @@ import { TRPCError } from '@trpc/server';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { putItem, getItem, updateItem, queryByGSI, generateId, timestamp } from '../lib/db.js';
 import { sendOTP, generateOTP, formatPhoneNumber, validatePhoneNumber } from '../lib/twilio.js';
+import { sendOTPEmail } from '../lib/email.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/aws.js';
@@ -250,6 +251,9 @@ export const authRouter = router({
       const otp = generateOTP();
       const expiresAt = Date.now() + 10 * 60 * 1000;
       
+      // Log OTP for debugging (will show in CloudWatch)
+      console.log(`[OTP] Generated for ${identifier}: ${otp} (expires in 10 min)`);
+      
       if (user) {
         // Store OTP for existing user
         otpStore.set(user.userId, { otp, expiresAt });
@@ -257,6 +261,7 @@ export const authRouter = router({
         // Send OTP via phone (prefer phone over email)
         if (user.phone) {
           const otpResult = await sendOTP(user.phone, otp);
+          console.log(`[OTP] Sent via ${otpResult.method} to ${user.phone}: ${otpResult.success ? 'SUCCESS' : 'FAILED'}`);
           return {
             success: otpResult.success,
             method: otpResult.method,
@@ -269,11 +274,28 @@ export const authRouter = router({
         otpStore.set(identifier, { otp, expiresAt });
       }
 
-      // For now, return success (in production, send email OTP)
+      // Send OTP via email
+      if (input.email) {
+        const emailResult = await sendOTPEmail(input.email, otp);
+        console.log(`[OTP] Email sent to ${input.email}: ${emailResult.success ? 'SUCCESS' : 'FAILED'}`);
+        
+        return {
+          success: emailResult.success,
+          method: 'email' as const,
+          isNewUser: !user,
+          message: emailResult.success 
+            ? 'OTP sent to your email. Please check your inbox.' 
+            : 'Failed to send email. Please try again or contact support.',
+          ...(config.environment === 'development' && { devOtp: otp })
+        };
+      }
+
+      // Fallback (shouldn't reach here)
       return {
         success: true,
         method: 'email' as const,
         isNewUser: !user,
+        message: 'OTP generated. Check your email.',
         ...(config.environment === 'development' && { devOtp: otp })
       };
     }),

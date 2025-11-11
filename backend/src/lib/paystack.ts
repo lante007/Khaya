@@ -4,6 +4,7 @@
  */
 
 import { config } from '../config/aws.js';
+import crypto from 'crypto';
 
 const PAYSTACK_API_URL = 'https://api.paystack.co';
 const PLATFORM_FEE_PERCENT = 5; // 5% platform fee
@@ -244,7 +245,6 @@ export async function cancelSubscription(subscriptionCode: string): Promise<bool
  * Verify webhook signature
  */
 export function verifyWebhookSignature(payload: string, signature: string): boolean {
-  const crypto = require('crypto');
   const hash = crypto
     .createHmac('sha512', config.paystackSecretKey)
     .update(payload)
