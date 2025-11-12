@@ -28,28 +28,28 @@ export const Footer = () => {
             <h3 className="font-bold mb-4 text-lg">Quick Links</h3>
             <ul className="space-y-2 text-sm text-primary-foreground/80">
               <li>
-                <Link to="/about">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">About Us</a>
+                <Link to="/about" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  About Us
                 </Link>
               </li>
               <li>
-                <Link to="/how-it-works">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">How It Works</a>
+                <Link to="/how-it-works" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  How It Works
                 </Link>
               </li>
               <li>
-                <Link to="/materials">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Marketplace</a>
+                <Link to="/materials" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Marketplace
                 </Link>
               </li>
               <li>
-                <Link to="/trust-safety">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Trust & Safety</a>
+                <Link to="/trust-safety" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Trust & Safety
                 </Link>
               </li>
               <li>
-                <Link to="/pricing">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Pricing</a>
+                <Link to="/pricing" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Pricing
                 </Link>
               </li>
             </ul>
@@ -60,28 +60,28 @@ export const Footer = () => {
             <h3 className="font-bold mb-4 text-lg">Support</h3>
             <ul className="space-y-2 text-sm text-primary-foreground/80">
               <li>
-                <Link to="/help">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Help Center</a>
+                <Link to="/help" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Help Center
                 </Link>
               </li>
               <li>
-                <Link to="/contact">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Contact Us</a>
+                <Link to="/contact" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Contact Us
                 </Link>
               </li>
               <li>
-                <Link to="/sms-support">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">SMS Support</a>
+                <Link to="/sms-support" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  SMS Support
                 </Link>
               </li>
               <li>
-                <Link to="/terms">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Terms of Service</a>
+                <Link to="/terms" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Terms of Service
                 </Link>
               </li>
               <li>
-                <Link to="/privacy">
-                  <a className="hover:text-secondary transition-colors cursor-pointer hover:underline">Privacy Policy</a>
+                <Link to="/privacy" className="hover:text-secondary transition-colors cursor-pointer hover:underline">
+                  Privacy Policy
                 </Link>
               </li>
             </ul>
@@ -163,16 +163,16 @@ export const Footer = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60">
             <p>© 2025 Khaya. All rights reserved. Starting in Estcourt, serving all of KZN.</p>
             <div className="flex gap-4 text-xs">
-              <Link to="/terms">
-                <a className="hover:text-secondary transition-colors cursor-pointer">Terms</a>
+              <Link to="/terms" className="hover:text-secondary transition-colors cursor-pointer">
+                Terms
               </Link>
               <span>•</span>
-              <Link to="/privacy">
-                <a className="hover:text-secondary transition-colors cursor-pointer">Privacy</a>
+              <Link to="/privacy" className="hover:text-secondary transition-colors cursor-pointer">
+                Privacy
               </Link>
               <span>•</span>
-              <Link to="/cookies">
-                <a className="hover:text-secondary transition-colors cursor-pointer">Cookies</a>
+              <Link to="/cookies" className="hover:text-secondary transition-colors cursor-pointer">
+                Cookies
               </Link>
             </div>
           </div>
