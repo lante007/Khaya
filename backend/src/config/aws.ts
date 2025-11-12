@@ -8,7 +8,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
 import { SNSClient } from '@aws-sdk/client-sns';
-import { SESClient } from '@aws-sdk/client-ses';
+
 import { EventBridgeClient } from '@aws-sdk/client-eventbridge';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 
@@ -32,8 +32,7 @@ export const s3Client = new S3Client({ region });
 // SNS Client
 export const snsClient = new SNSClient({ region });
 
-// SES Client
-export const sesClient = new SESClient({ region });
+
 
 // EventBridge Client
 export const eventBridgeClient = new EventBridgeClient({ region });
