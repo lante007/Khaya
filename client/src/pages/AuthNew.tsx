@@ -27,7 +27,8 @@ export default function AuthNew() {
   // Request OTP mutation
   const requestOTPMutation = trpc.auth.requestOTP.useMutation({
     onSuccess: (data) => {
-      toast.success('OTP sent to your phone!');
+      const destination = method === 'email' ? 'email' : 'phone';
+      toast.success(`OTP sent to your ${destination}!`);
       setStep('otp');
     },
     onError: (error) => {
@@ -39,7 +40,8 @@ export default function AuthNew() {
   const verifyOTPMutation = trpc.auth.verifyOTP.useMutation({
     onSuccess: (data) => {
       if (data.isNewUser) {
-        toast.success('Phone verified! Please complete your profile.');
+        const verified = method === 'email' ? 'Email' : 'Phone';
+        toast.success(`${verified} verified! Please complete your profile.`);
         setIsNewUser(true);
         setStep('profile');
       } else {
