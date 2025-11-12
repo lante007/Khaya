@@ -1,243 +1,77 @@
-# ✅ DNS Records Added Successfully!
+# ✅ MailerSend DNS Records Added to Route 53
 
-**Date:** November 11, 2025, 20:14 UTC
+**Date**: 2024-11-12 20:40 UTC  
+**Status**: ✅ Successfully Added  
+**Propagation**: In Progress (5-15 minutes)
 
 ---
 
-## 🎉 What I Did
+## 📋 **Records Added**
 
-### ✅ Added 4 DNS Records to Route 53
-
-**1. Domain Verification (TXT)**
+### **1. SPF Record (TXT)** ✅
 ```
-Name: _amazonses.projectkhaya.co.za
-Value: Z+8dtOUTB5Nv3EWlnGfr3DKxA4jzTnp0KqPCuUqU5Z4=
-Status: ✅ ADDED
-```
-
-**2. DKIM Record 1 (CNAME)**
-```
-Name: pw7wrgef4blqbrcrsh5mgu3e56tddutw._domainkey.projectkhaya.co.za
-Value: pw7wrgef4blqbrcrsh5mgu3e56tddutw.dkim.amazonses.com
-Status: ✅ ADDED
+Name: projectkhaya.co.za
+Type: TXT
+Value: "v=spf1 include:_spf.mailersend.net ~all"
+TTL: 300
 ```
 
-**3. DKIM Record 2 (CNAME)**
+### **2. DKIM Record (CNAME)** ✅
 ```
-Name: 5djxkkxppdzfz7zvikqx4md5ev5aowjo._domainkey.projectkhaya.co.za
-Value: 5djxkkxppdzfz7zvikqx4md5ev5aowjo.dkim.amazonses.com
-Status: ✅ ADDED
+Name: mlsend2._domainkey.projectkhaya.co.za
+Type: CNAME
+Value: mlsend2._domainkey.mailersend.net
+TTL: 300
 ```
 
-**4. DKIM Record 3 (CNAME)**
+### **3. Return-Path Record (CNAME)** ✅
 ```
-Name: bonq5stoh6cqkvjlgo37ma5ee6p6blxs._domainkey.projectkhaya.co.za
-Value: bonq5stoh6cqkvjlgo37ma5ee6p6blxs.dkim.amazonses.com
-Status: ✅ ADDED
+Name: mta.projectkhaya.co.za
+Type: CNAME
+Value: mailersend.net
+TTL: 300
 ```
 
 ---
 
-## ⏱️ Current Status
+## ⏱️ **Next Steps**
 
-```
-┌─────────────────────────────────────────┐
-│  📧 SES DOMAIN VERIFICATION            │
-├─────────────────────────────────────────┤
-│  DNS Records:        ✅ ADDED          │
-│  Domain Status:      ⏳ PENDING        │
-│  DKIM Status:        ⏳ PENDING        │
-│  Propagation Time:   5-30 minutes      │
-└─────────────────────────────────────────┘
-```
+### **Wait 5-15 Minutes**
+DNS records are propagating across the internet. This usually takes 5-15 minutes.
 
-**Verification Status:** Pending (waiting for DNS propagation)
+### **Then Verify in MailerSend**
+1. Go to https://app.mailersend.com/domains
+2. Click on `projectkhaya.co.za`
+3. Click **"I have added DNS records"** button
+4. MailerSend will verify the records
+5. ✅ Domain should be verified!
 
 ---
 
-## 🔍 Check Verification Status
+## 🧪 **Check Propagation Status**
 
-```bash
-# Check domain verification
-aws ses get-identity-verification-attributes \
-  --identities projectkhaya.co.za \
-  --region us-east-1
-
-# Check DKIM verification
-aws ses get-identity-dkim-attributes \
-  --identities projectkhaya.co.za \
-  --region us-east-1
-```
-
-**Expected after verification:**
-```json
-{
-  "VerificationStatus": "Success",
-  "DkimVerificationStatus": "Success"
-}
-```
+You can check if DNS has propagated:
+- https://dnschecker.org/
+- Enter: `projectkhaya.co.za`
+- Check TXT records for SPF
+- Enter: `mlsend2._domainkey.projectkhaya.co.za`
+- Check CNAME records
 
 ---
 
-## ⏰ Timeline
+## ✅ **Verification Checklist**
 
-- **20:14 UTC** - DNS records added ✅
-- **20:15-20:45 UTC** - DNS propagation in progress ⏳
-- **~20:30 UTC** - Expected verification complete ✅
-
-**Check back in 15-20 minutes!**
-
----
-
-## 🧪 Test After Verification
-
-### Test OTP Email:
-```bash
-curl -X POST https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc/auth.requestOTP \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com"}'
-```
-
-**Expected Response:**
-```json
-{
-  "result": {
-    "data": {
-      "success": true,
-      "method": "email",
-      "message": "OTP sent to your email. Please check your inbox."
-    }
-  }
-}
-```
-
-**User receives:**
-- Professional HTML email
-- 6-digit OTP code
-- Project Khaya branding
-- 10-minute expiry notice
+- [x] SPF record added to Route 53
+- [x] DKIM record added to Route 53
+- [x] Return-Path record added to Route 53
+- [ ] Wait 5-15 minutes for propagation
+- [ ] Click "I have added DNS records" in MailerSend
+- [ ] Domain verified ✅
+- [ ] Test email sending
+- [ ] Launch! 🚀
 
 ---
 
-## ✅ What This Enables
-
-Once verified, you can send from:
-- ✅ Amanda@projectkhaya.co.za
-- ✅ noreply@projectkhaya.co.za
-- ✅ support@projectkhaya.co.za
-- ✅ info@projectkhaya.co.za
-- ✅ **ANY email @projectkhaya.co.za**
-
-No need to verify individual email addresses! 🎉
-
----
-
-## 📊 DNS Records Verification
-
-### Check DNS Propagation:
-```bash
-# Check TXT record
-dig TXT _amazonses.projectkhaya.co.za +short
-
-# Check DKIM records
-dig CNAME pw7wrgef4blqbrcrsh5mgu3e56tddutw._domainkey.projectkhaya.co.za +short
-dig CNAME 5djxkkxppdzfz7zvikqx4md5ev5aowjo._domainkey.projectkhaya.co.za +short
-dig CNAME bonq5stoh6cqkvjlgo37ma5ee6p6blxs._domainkey.projectkhaya.co.za +short
-```
-
-**Expected Output:**
-```
-"Z+8dtOUTB5Nv3EWlnGfr3DKxA4jzTnp0KqPCuUqU5Z4="
-pw7wrgef4blqbrcrsh5mgu3e56tddutw.dkim.amazonses.com.
-5djxkkxppdzfz7zvikqx4md5ev5aowjo.dkim.amazonses.com.
-bonq5stoh6cqkvjlgo37ma5ee6p6blxs.dkim.amazonses.com.
-```
-
----
-
-## 🎯 Next Steps
-
-### Automatic (No Action Needed):
-1. ⏳ DNS propagates (5-30 minutes)
-2. ⏳ AWS verifies domain automatically
-3. ⏳ DKIM verified automatically
-4. ✅ Domain ready to send emails
-
-### Manual Check (Optional):
-```bash
-# Run this in 15 minutes to check status
-aws ses get-identity-verification-attributes \
-  --identities projectkhaya.co.za \
-  --region us-east-1 \
-  --query 'VerificationAttributes.*.VerificationStatus' \
-  --output text
-```
-
-**When you see:** `Success` → Domain is verified! ✅
-
----
-
-## 📧 Email System Status
-
-```
-┌─────────────────────────────────────────┐
-│  📧 COMPLETE EMAIL SYSTEM              │
-├─────────────────────────────────────────┤
-│  Email Function:     ✅ CREATED        │
-│  Auth Router:        ✅ UPDATED        │
-│  Lambda Deployed:    ✅ LIVE           │
-│  SES Permissions:    ✅ ADDED          │
-│  DNS Records:        ✅ ADDED          │
-│  Domain Verification: ⏳ PENDING       │
-│  DKIM Verification:  ⏳ PENDING        │
-└─────────────────────────────────────────┘
-```
-
----
-
-## 🔔 Notification
-
-I'll check the status in 15 minutes and let you know when it's verified!
-
-Or you can check yourself:
-```bash
-aws ses get-identity-verification-attributes \
-  --identities projectkhaya.co.za \
-  --region us-east-1
-```
-
----
-
-## ✅ Summary
-
-**What's Done:**
-- ✅ 4 DNS records added to Route 53
-- ✅ Domain verification initiated
-- ✅ DKIM authentication configured
-- ✅ Email sending code deployed
-- ✅ Lambda permissions configured
-
-**What's Happening:**
-- ⏳ DNS propagating globally
-- ⏳ AWS verifying domain ownership
-- ⏳ DKIM authentication verifying
-
-**What's Next:**
-- ⏳ Wait 15-30 minutes
-- ✅ Domain automatically verified
-- ✅ OTP emails work immediately
-
----
-
-**DNS records are added! Verification will complete automatically in 15-30 minutes.** ⏳
-
-**Once verified, OTP emails will be sent automatically to any user!** 🚀✅
-
----
-
-**Check status in 15 minutes with:**
-```bash
-aws ses get-identity-verification-attributes --identities projectkhaya.co.za --region us-east-1
-```
-
-**Look for:** `"VerificationStatus": "Success"` ✅
+**Current Time**: 20:40 UTC  
+**Check Again At**: 20:50 UTC (10 minutes)  
+**Expected Verification**: 20:45-20:55 UTC

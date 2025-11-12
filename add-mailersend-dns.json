@@ -1,0 +1,44 @@
+{
+  "Comment": "Add MailerSend DNS records for projectkhaya.co.za",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "projectkhaya.co.za",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "\"v=spf1 include:_spf.mailersend.net ~all\""
+          }
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "mlsend2._domainkey.projectkhaya.co.za",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "mlsend2._domainkey.mailersend.net"
+          }
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "mta.projectkhaya.co.za",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "mailersend.net"
+          }
+        ]
+      }
+    }
+  ]
+}
