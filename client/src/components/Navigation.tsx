@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl, APP_TITLE } from "@/const";
 import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut } from "lucide-react";
@@ -36,32 +37,24 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <Link to="/">
-              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
-                <Home className="w-4 h-4" />
-                Home
-              </a>
+            <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+              <Home className="w-4 h-4" />
+              Home
             </Link>
-            <Link to="/stories">
-              <a className="text-foreground hover:text-primary transition-colors font-medium">Stories</a>
+            <Link to="/stories" className="text-foreground hover:text-primary transition-colors font-medium">
+              Stories
             </Link>
-            <Link to="/workers">
-              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
-                <Briefcase className="w-4 h-4" />
-                Find Workers
-              </a>
+            <Link to="/workers" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+              <Briefcase className="w-4 h-4" />
+              Find Workers
             </Link>
-            <Link to="/materials">
-              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Materials
-              </a>
+            <Link to="/materials" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Materials
             </Link>
-            <Link to="/jobs">
-              <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
-                <Briefcase className="w-4 h-4" />
-                Browse Jobs
-              </a>
+            <Link to="/jobs" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+              <Briefcase className="w-4 h-4" />
+              Browse Jobs
             </Link>
           </div>
 
@@ -77,7 +70,11 @@ export default function Navigation() {
                 </Link>
                 <Link to="/dashboard">
                   <Button variant="outline" className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
+                    <Avatar 
+                      src={user?.profilePictureUrl} 
+                      name={user?.name} 
+                      size="xs"
+                    />
                     Dashboard
                   </Button>
                 </Link>
@@ -115,29 +112,21 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-4">
-              <Link to="/">
-                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
-                  <Home className="w-4 h-4" />
-                  Home
-                </a>
+              <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                <Home className="w-4 h-4" />
+                Home
               </Link>
-              <Link to="/workers">
-                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
-                  <Briefcase className="w-4 h-4" />
-                  Find Workers
-                </a>
+              <Link to="/workers" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                <Briefcase className="w-4 h-4" />
+                Find Workers
               </Link>
-              <Link to="/materials">
-                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
-                  <Package className="w-4 h-4" />
-                  Materials
-                </a>
+              <Link to="/materials" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                <Package className="w-4 h-4" />
+                Materials
               </Link>
-              <Link to="/jobs">
-                <a className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
-                  <Briefcase className="w-4 h-4" />
-                  Browse Jobs
-                </a>
+              <Link to="/jobs" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                <Briefcase className="w-4 h-4" />
+                Browse Jobs
               </Link>
               
               {isAuthenticated ? (

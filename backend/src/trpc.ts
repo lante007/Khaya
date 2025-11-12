@@ -23,8 +23,9 @@ export function createContext({
   event,
   context,
 }: CreateAWSLambdaContextOptions<any>): Context {
-  // Extract token from Authorization header
-  const token = event.headers?.authorization?.replace('Bearer ', '');
+  // Extract token from Authorization header (case-insensitive)
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  const token = authHeader?.replace('Bearer ', '').replace('bearer ', '');
   
   if (token) {
     try {
@@ -38,6 +39,7 @@ export function createContext({
       };
     } catch (error) {
       // Invalid token, return empty context
+      console.error('JWT verification failed:', error);
       return {};
     }
   }

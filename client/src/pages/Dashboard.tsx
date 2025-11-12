@@ -2,13 +2,17 @@ import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar } from "@/components/Avatar";
+import { ProfileCompletionBadge, calculateProfileCompletion } from "@/components/ProfileCompletionBadge";
+import { ProfileNudge } from "@/components/ProfileNudge";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Briefcase, Package, User, Bell } from "lucide-react";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const { data: myJobs, isLoading: jobsLoading, error: jobsError } = trpc.job.getMyJobs.useQuery();
   const { data: myBids, isLoading: bidsLoading, error: bidsError } = trpc.bid.getMyBids.useQuery();
   const { data: myListings, isLoading: listingsLoading, error: listingsError } = trpc.listing.getMyListings.useQuery();
@@ -20,12 +24,61 @@ export default function Dashboard() {
     const value = amount > 1000 ? amount / 100 : amount;
     return `R${value.toFixed(2)}`;
   };
+
+  // Calculate profile completion
+  const completion = calculateProfileCompletion({
+    name: user?.name,
+    email: user?.email,
+    phone: user?.phone,
+    profilePictureUrl: user?.profilePictureUrl,
+    bio: user?.bio,
+    location: user?.location,
+    skills: user?.skills,
+    verified: user?.verified
+  });
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
       <div className="container py-8">
-        <div className="mb-8"><h1 className="text-4xl font-bold mb-2">Dashboard</h1><p className="text-lg text-muted-foreground">Welcome back, {user?.name || "User"}!</p></div>
+        {/* Header with Avatar */}
+        <div className="mb-8 flex items-start gap-6">
+          <Avatar 
+            src={user?.profilePictureUrl} 
+            name={user?.name} 
+            size="xl"
+            showBorder
+          />
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
+            <p className="text-lg text-muted-foreground mb-4">Welcome back, {user?.name || "User"}!</p>
+            <ProfileCompletionBadge percentage={completion.percentage} variant="inline" />
+          </div>
+        </div>
+
+        {/* Profile Nudges */}
+        {completion.percentage < 100 && (
+          <div className="mb-6 space-y-4">
+            {!user?.profilePictureUrl && (
+              <ProfileNudge
+                type="profile-picture"
+                onAction={() => setLocation('/profile')}
+              />
+            )}
+            {!user?.bio && (
+              <ProfileNudge
+                type="bio"
+                onAction={() => setLocation('/profile')}
+              />
+            )}
+            {!user?.location && (
+              <ProfileNudge
+                type="location"
+                onAction={() => setLocation('/profile')}
+              />
+            )}
+          </div>
+        )}
         <Tabs defaultValue="jobs" className="w-full">
           <TabsList className="grid w-full grid-cols-4"><TabsTrigger value="jobs">My Jobs</TabsTrigger><TabsTrigger value="bids">My Bids</TabsTrigger><TabsTrigger value="listings">My Listings</TabsTrigger><TabsTrigger value="notifications">Notifications</TabsTrigger></TabsList>
           <TabsContent value="jobs" className="space-y-4"><Card><CardHeader><CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5" />Posted Jobs</CardTitle><CardDescription>Jobs you have posted</CardDescription></CardHeader><CardContent>{jobsLoading ? <p className="text-muted-foreground">Loading jobs...</p> : jobsError ? <p className="text-red-500">Error loading jobs</p> : myJobs && myJobs.length > 0 ? <div className="space-y-3">{myJobs.map((job: any) => <div key={job.jobId || job.id} className="p-4 border rounded-lg"><div className="flex justify-between items-start"><div><h3 className="font-semibold">{job.title || 'Untitled Job'}</h3><p className="text-sm text-muted-foreground">{job.category || 'General'} · {job.location || 'Location TBD'}</p></div><span className="text-sm font-medium">{formatPrice(job.budget)}</span></div><Link to={`/jobs/${job.jobId || job.id}`}><Button size="sm" className="mt-2">View Details</Button></Link></div>)}</div> : <p className="text-muted-foreground">No jobs posted yet</p>}</CardContent></Card></TabsContent>

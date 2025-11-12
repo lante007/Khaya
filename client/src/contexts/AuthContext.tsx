@@ -9,6 +9,11 @@ interface User {
   email?: string;
   phone: string;
   role: UserRole;
+  profilePictureUrl?: string | null;
+  bio?: string;
+  location?: string;
+  skills?: string[];
+  verified?: boolean;
 }
 
 interface AuthContextType {

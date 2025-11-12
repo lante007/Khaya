@@ -528,7 +528,11 @@ export const authRouter = router({
         userType: user.userType,
         verified: user.verified,
         trustScore: user.trustScore,
-        completedJobs: user.completedJobs
+        completedJobs: user.completedJobs,
+        profilePictureUrl: user.profilePictureUrl,
+        bio: user.bio,
+        location: user.location,
+        skills: user.skills
       };
     }),
 
