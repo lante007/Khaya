@@ -42,6 +42,12 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: import.meta.env.VITE_API_URL || "https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc",
       transformer: superjson,
+      headers() {
+        const token = localStorage.getItem('token');
+        return {
+          authorization: token ? `Bearer ${token}` : '',
+        };
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),
