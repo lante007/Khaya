@@ -13,11 +13,12 @@ type UserType = 'buyer' | 'worker' | 'seller';
 
 export default function AuthNew() {
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState<'phone' | 'otp' | 'profile'>('phone');
+  const [step, setStep] = useState<'contact' | 'otp' | 'profile'>('contact');
+  const [method, setMethod] = useState<'phone' | 'email'>('email');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserType] = useState<UserType>('buyer');
   const [userId, setUserId] = useState('');
@@ -74,15 +75,25 @@ export default function AuthNew() {
   });
 
   const handleRequestOTP = () => {
-    if (!phone || phone.length < 10) {
-      toast.error('Please enter a valid phone number');
-      return;
+    if (method === 'phone') {
+      if (!phone || phone.length < 10) {
+        toast.error('Please enter a valid phone number');
+        return;
+      }
+      requestOTPMutation.mutate({
+        phone,
+        email: undefined
+      });
+    } else {
+      if (!email || !email.includes('@')) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
+      requestOTPMutation.mutate({
+        email,
+        phone: undefined
+      });
     }
-
-    requestOTPMutation.mutate({
-      phone,
-      email: undefined
-    });
   };
 
   const handleVerifyOTP = () => {
@@ -92,8 +103,8 @@ export default function AuthNew() {
     }
 
     verifyOTPMutation.mutate({
-      phone,
-      email: undefined,
+      phone: method === 'phone' ? phone : undefined,
+      email: method === 'email' ? email : undefined,
       otp
     });
   };
@@ -104,9 +115,12 @@ export default function AuthNew() {
       return;
     }
 
+    // Phone is required by backend, use a placeholder if using email method
+    const phoneToUse = method === 'phone' ? phone : '+27000000000';
+
     signUpMutation.mutate({
-      phone,
-      email: email || undefined,
+      phone: phoneToUse,
+      email: method === 'email' ? email : (email || undefined),
       password,
       userType,
       name
@@ -141,34 +155,58 @@ export default function AuthNew() {
             <Home className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl">
-            {step === 'phone' && 'Welcome to Project Khaya'}
-            {step === 'otp' && 'Verify Your Phone'}
+            {step === 'contact' && 'Welcome to Project Khaya'}
+            {step === 'otp' && `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
             {step === 'profile' && 'Complete Your Profile'}
           </CardTitle>
           <CardDescription>
-            {step === 'phone' && 'Enter your phone number to get started'}
-            {step === 'otp' && 'Enter the OTP sent to your phone'}
+            {step === 'contact' && 'Enter your contact details to get started'}
+            {step === 'otp' && `Enter the OTP sent to your ${method === 'phone' ? 'phone' : 'email'}`}
             {step === 'profile' && 'Tell us a bit about yourself'}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          {step === 'phone' && (
+          {step === 'contact' && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="0812345678 or 27812345678"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  We'll send you a verification code via SMS
-                </p>
-              </div>
+              <Tabs value={method} onValueChange={(v) => setMethod(v as 'phone' | 'email')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="email">Email</TabsTrigger>
+                  <TabsTrigger value="phone">Phone</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {method === 'email' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll send you a verification code via email
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="0812345678 or 27812345678"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll send you a verification code via SMS
+                  </p>
+                </div>
+              )}
 
               <Button 
                 onClick={handleRequestOTP} 
@@ -219,11 +257,11 @@ export default function AuthNew() {
 
               <Button 
                 variant="ghost" 
-                onClick={() => setStep('phone')} 
+                onClick={() => setStep('contact')} 
                 className="w-full"
                 disabled={isLoading}
               >
-                Change Phone Number
+                Change {method === 'phone' ? 'Phone Number' : 'Email Address'}
               </Button>
             </div>
           )}
@@ -242,17 +280,33 @@ export default function AuthNew() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email (Optional)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
+              {method === 'phone' && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email (Optional)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+
+              {method === 'email' && (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone (Optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="0812345678"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password *</Label>

@@ -258,14 +258,57 @@ export const authRouter = router({
         // Store OTP for existing user
         otpStore.set(user.userId, { otp, expiresAt });
         
-        // Send OTP via phone (prefer phone over email)
-        if (user.phone) {
+        // Try to send OTP via phone first (if available)
+        if (user.phone && config.twilioAccountSid) {
           const otpResult = await sendOTP(user.phone, otp);
           console.log(`[OTP] Sent via ${otpResult.method} to ${user.phone}: ${otpResult.success ? 'SUCCESS' : 'FAILED'}`);
+          
+          // If SMS/WhatsApp succeeded, return
+          if (otpResult.success) {
+            return {
+              success: true,
+              method: otpResult.method,
+              isNewUser: false,
+              ...(config.environment === 'development' && { devOtp: otp })
+            };
+          }
+          
+          // SMS failed, try email fallback if available
+          if (user.email) {
+            console.log(`[OTP] SMS failed, trying email fallback to ${user.email}`);
+            const emailResult = await sendOTPEmail(user.email, otp);
+            console.log(`[OTP] Email sent to ${user.email}: ${emailResult.success ? 'SUCCESS' : 'FAILED'}`);
+            return {
+              success: emailResult.success,
+              method: 'email' as const,
+              isNewUser: false,
+              message: emailResult.success 
+                ? 'OTP sent to your email. Please check your inbox.' 
+                : 'Failed to send OTP. Please try again or contact support.',
+              ...(config.environment === 'development' && { devOtp: otp })
+            };
+          }
+          
+          // No email available, return SMS failure
           return {
-            success: otpResult.success,
-            method: otpResult.method,
+            success: false,
+            method: 'failed' as const,
             isNewUser: false,
+            message: 'Failed to send OTP. Please contact support.'
+          };
+        }
+        
+        // No phone or Twilio not configured, try email
+        if (user.email) {
+          const emailResult = await sendOTPEmail(user.email, otp);
+          console.log(`[OTP] Email sent to ${user.email}: ${emailResult.success ? 'SUCCESS' : 'FAILED'}`);
+          return {
+            success: emailResult.success,
+            method: 'email' as const,
+            isNewUser: false,
+            message: emailResult.success 
+              ? 'OTP sent to your email. Please check your inbox.' 
+              : 'Failed to send email. Please try again or contact support.',
             ...(config.environment === 'development' && { devOtp: otp })
           };
         }
@@ -274,7 +317,7 @@ export const authRouter = router({
         otpStore.set(identifier, { otp, expiresAt });
       }
 
-      // Send OTP via email
+      // Send OTP via email for new users or when phone fails
       if (input.email) {
         const emailResult = await sendOTPEmail(input.email, otp);
         console.log(`[OTP] Email sent to ${input.email}: ${emailResult.success ? 'SUCCESS' : 'FAILED'}`);
