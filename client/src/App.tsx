@@ -5,7 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import Auth from "./pages/Auth";
+import Auth from "./pages/AuthNew";
 import Workers from "./pages/Workers";
 import Materials from "./pages/Materials";
 import Jobs from "./pages/Jobs";
