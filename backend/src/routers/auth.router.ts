@@ -501,5 +501,44 @@ export const authRouter = router({
         method: otpResult.method,
         ...(config.environment === 'development' && { otp })
       };
+    }),
+
+  /**
+   * Get Current User (Me)
+   */
+  me: protectedProcedure
+    .query(async ({ ctx }) => {
+      const user = await getItem({
+        PK: `USER#${ctx.user!.userId}`,
+        SK: 'PROFILE'
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'User not found'
+        });
+      }
+
+      return {
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: user.userType,
+        verified: user.verified,
+        trustScore: user.trustScore,
+        completedJobs: user.completedJobs
+      };
+    }),
+
+  /**
+   * Logout (placeholder - JWT is stateless)
+   */
+  logout: protectedProcedure
+    .mutation(async () => {
+      // JWT is stateless, so logout is handled client-side
+      // Could add token blacklist here if needed
+      return { success: true };
     })
 });
