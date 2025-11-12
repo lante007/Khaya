@@ -13,6 +13,7 @@ type UserType = 'buyer' | 'worker' | 'seller';
 
 export default function AuthNew() {
   const [, setLocation] = useLocation();
+  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState<'contact' | 'otp' | 'profile'>('contact');
   const [method, setMethod] = useState<'phone' | 'email'>('email');
   const [phone, setPhone] = useState('');
@@ -57,6 +58,22 @@ export default function AuthNew() {
     },
   });
 
+  // Sign in mutation
+  const signInMutation = trpc.auth.signIn.useMutation({
+    onSuccess: (data) => {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({
+        userId: data.userId,
+        userType: data.userType
+      }));
+      toast.success('Welcome back!');
+      setLocation('/dashboard');
+    },
+    onError: (error) => {
+      toast.error(`Sign in failed: ${error.message}`);
+    },
+  });
+
   // Sign up mutation
   const signUpMutation = trpc.auth.signUp.useMutation({
     onSuccess: (data) => {
@@ -75,6 +92,25 @@ export default function AuthNew() {
       toast.error(`Sign up failed: ${error.message}`);
     },
   });
+
+  const handleSignIn = () => {
+    const identifier = method === 'email' ? email : phone;
+    
+    if (!identifier || !password) {
+      toast.error('Please enter your email/phone and password');
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    signInMutation.mutate({
+      identifier,
+      password
+    });
+  };
 
   const handleRequestOTP = () => {
     if (method === 'phone') {
@@ -163,7 +199,7 @@ export default function AuthNew() {
     setPhone(formatted);
   };
 
-  const isLoading = requestOTPMutation.isLoading || verifyOTPMutation.isLoading || signUpMutation.isLoading;
+  const isLoading = requestOTPMutation.isLoading || verifyOTPMutation.isLoading || signUpMutation.isLoading || signInMutation.isLoading;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 p-4">
@@ -173,19 +209,97 @@ export default function AuthNew() {
             <Home className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl">
-            {step === 'contact' && 'Welcome to Project Khaya'}
-            {step === 'otp' && `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
-            {step === 'profile' && 'Complete Your Profile'}
+            {mode === 'signin' && 'Welcome Back'}
+            {mode === 'signup' && step === 'contact' && 'Welcome to Project Khaya'}
+            {mode === 'signup' && step === 'otp' && `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
+            {mode === 'signup' && step === 'profile' && 'Complete Your Profile'}
           </CardTitle>
           <CardDescription>
-            {step === 'contact' && 'Enter your contact details to get started'}
-            {step === 'otp' && `Enter the OTP sent to your ${method === 'phone' ? 'phone' : 'email'}`}
-            {step === 'profile' && 'Tell us a bit about yourself'}
+            {mode === 'signin' && 'Sign in to your account'}
+            {mode === 'signup' && step === 'contact' && 'Enter your contact details to get started'}
+            {mode === 'signup' && step === 'otp' && `Enter the OTP sent to your ${method === 'phone' ? 'phone' : 'email'}`}
+            {mode === 'signup' && step === 'profile' && 'Tell us a bit about yourself'}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          {step === 'contact' && (
+          {mode === 'signin' && (
+            <div className="space-y-4">
+              <Tabs value={method} onValueChange={(v) => setMethod(v as 'phone' | 'email')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="email">Email</TabsTrigger>
+                  <TabsTrigger value="phone">Phone</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {method === 'email' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email Address</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="signin-phone">Phone Number</Label>
+                  <Input
+                    id="signin-phone"
+                    type="tel"
+                    placeholder="0812345678"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="signin-password">Password</Label>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <Button 
+                onClick={handleSignIn} 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto font-semibold" 
+                  onClick={() => setMode('signup')}
+                  disabled={isLoading}
+                >
+                  Sign up
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'signup' && step === 'contact' && (
             <div className="space-y-4">
               <Tabs value={method} onValueChange={(v) => setMethod(v as 'phone' | 'email')}>
                 <TabsList className="grid w-full grid-cols-2">
@@ -240,10 +354,22 @@ export default function AuthNew() {
                   'Send OTP'
                 )}
               </Button>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Already have an account? </span>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto font-semibold" 
+                  onClick={() => setMode('signin')}
+                  disabled={isLoading}
+                >
+                  Sign in
+                </Button>
+              </div>
             </div>
           )}
 
-          {step === 'otp' && (
+          {mode === 'signup' && step === 'otp' && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="otp">Verification Code</Label>
@@ -284,7 +410,7 @@ export default function AuthNew() {
             </div>
           )}
 
-          {step === 'profile' && (
+          {mode === 'signup' && step === 'profile' && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name *</Label>
