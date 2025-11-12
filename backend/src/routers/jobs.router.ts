@@ -159,10 +159,28 @@ export const jobsRouter = router({
   myJobs: clientOnlyProcedure
     .query(async ({ ctx }) => {
       const jobs = await queryItems({
-        IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :pk',
+        FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk AND clientId = :clientId',
         ExpressionAttributeValues: {
-          ':pk': `CLIENT#${ctx.user!.userId}`
+          ':prefix': 'JOB#',
+          ':sk': 'METADATA',
+          ':clientId': ctx.user!.userId
+        }
+      });
+
+      return jobs.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }),
+
+  // Alias for dashboard compatibility
+  getMyJobs: protectedProcedure
+    .query(async ({ ctx }) => {
+      const jobs = await queryItems({
+        FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk AND clientId = :clientId',
+        ExpressionAttributeValues: {
+          ':prefix': 'JOB#',
+          ':sk': 'METADATA',
+          ':clientId': ctx.user!.userId
         }
       });
 

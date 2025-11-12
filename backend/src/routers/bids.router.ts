@@ -363,5 +363,37 @@ export const bidsRouter = router({
       }
 
       return { success: true };
+    }),
+
+  // Get my bids (worker)
+  getMyBids: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Get all bids by this worker
+      const allBids = await queryItems({
+        FilterExpression: 'begins_with(SK, :prefix) AND workerId = :workerId',
+        ExpressionAttributeValues: {
+          ':prefix': 'BID#',
+          ':workerId': ctx.user!.userId
+        }
+      });
+
+      // Get job details for each bid
+      const bidsWithJobs = await Promise.all(
+        allBids.map(async (bid) => {
+          const jobId = bid.PK.replace('JOB#', '');
+          const job = await getItem({
+            PK: `JOB#${jobId}`,
+            SK: 'METADATA'
+          });
+          return {
+            bid,
+            job
+          };
+        })
+      );
+
+      return bidsWithJobs.sort((a, b) => 
+        new Date(b.bid.createdAt).getTime() - new Date(a.bid.createdAt).getTime()
+      );
     })
 });

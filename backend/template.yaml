@@ -15,6 +15,9 @@ Globals:
         COGNITO_CLIENT_ID: !Ref KhayaUserPoolClient
         S3_BUCKET_NAME: !Ref KhayaUploadsBucket
         PAYSTACK_SECRET_KEY: !Ref PaystackSecretKey
+        TWILIO_ACCOUNT_SID: !Ref TwilioAccountSid
+        TWILIO_AUTH_TOKEN: !Ref TwilioAuthToken
+        TWILIO_PHONE_NUMBER: !Ref TwilioPhoneNumber
         FRONTEND_URL: !Ref FrontendUrl
 
 Parameters:
@@ -22,6 +25,22 @@ Parameters:
     Type: String
     Description: Paystack API Secret Key
     NoEcho: true
+  
+  TwilioAccountSid:
+    Type: String
+    Description: Twilio Account SID
+    Default: ""
+  
+  TwilioAuthToken:
+    Type: String
+    Description: Twilio Auth Token
+    NoEcho: true
+    Default: ""
+  
+  TwilioPhoneNumber:
+    Type: String
+    Description: Twilio Phone Number (for SMS)
+    Default: ""
   
   FrontendUrl:
     Type: String

@@ -81,18 +81,16 @@ export default function AuthNew() {
         return;
       }
       requestOTPMutation.mutate({
-        phone,
-        email: undefined
-      });
+        phone
+      } as any);
     } else {
       if (!email || !email.includes('@')) {
         toast.error('Please enter a valid email address');
         return;
       }
       requestOTPMutation.mutate({
-        email,
-        phone: undefined
-      });
+        email
+      } as any);
     }
   };
 
@@ -102,11 +100,14 @@ export default function AuthNew() {
       return;
     }
 
-    verifyOTPMutation.mutate({
-      phone: method === 'phone' ? phone : undefined,
-      email: method === 'email' ? email : undefined,
-      otp
-    });
+    const payload: any = { otp };
+    if (method === 'phone') {
+      payload.phone = phone;
+    } else {
+      payload.email = email;
+    }
+
+    verifyOTPMutation.mutate(payload);
   };
 
   const handleSignUp = () => {

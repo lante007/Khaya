@@ -5,7 +5,7 @@ codeuri = "/workspaces/Khaya/backend"
 runtime = "nodejs20.x"
 architecture = "x86_64"
 handler = "dist/server.handler"
-manifest_hash = "7e1acc6ad52c22e4619bbdab86eeb43b"
+manifest_hash = "746552c51588fc0c0af650505c76f27a"
 packagetype = "Zip"
 functions = ["KhayaFunction"]
 
