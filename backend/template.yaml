@@ -14,6 +14,8 @@ Globals:
         COGNITO_USER_POOL_ID: !Ref KhayaUserPool
         COGNITO_CLIENT_ID: !Ref KhayaUserPoolClient
         S3_BUCKET_NAME: !Ref KhayaUploadsBucket
+        JWT_SECRET: !Ref JwtSecret
+        MAILERSEND_API_KEY: !Ref MailerSendApiKey
         PAYSTACK_SECRET_KEY: !Ref PaystackSecretKey
         TWILIO_ACCOUNT_SID: !Ref TwilioAccountSid
         TWILIO_AUTH_TOKEN: !Ref TwilioAuthToken
@@ -21,10 +23,21 @@ Globals:
         FRONTEND_URL: !Ref FrontendUrl
 
 Parameters:
+  JwtSecret:
+    Type: String
+    Description: JWT Secret Key for authentication
+    NoEcho: true
+  
+  MailerSendApiKey:
+    Type: String
+    Description: MailerSend API Key for email sending
+    NoEcho: true
+  
   PaystackSecretKey:
     Type: String
     Description: Paystack API Secret Key
     NoEcho: true
+    Default: ""
   
   TwilioAccountSid:
     Type: String
