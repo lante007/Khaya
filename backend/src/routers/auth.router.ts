@@ -317,6 +317,24 @@ export const authRouter = router({
         otpStore.set(identifier, { otp, expiresAt });
       }
 
+      // Send OTP for new users
+      if (input.phone && config.twilioAccountSid) {
+        // Try SMS for new user with phone
+        const formattedPhone = formatPhoneNumber(input.phone);
+        const otpResult = await sendOTP(formattedPhone, otp);
+        console.log(`[OTP] Sent via ${otpResult.method} to ${formattedPhone}: ${otpResult.success ? 'SUCCESS' : 'FAILED'}`);
+        
+        return {
+          success: otpResult.success,
+          method: otpResult.method,
+          isNewUser: true,
+          message: otpResult.success 
+            ? `OTP sent via ${otpResult.method}. Please check your ${otpResult.method === 'sms' ? 'messages' : 'WhatsApp'}.`
+            : 'Failed to send OTP. Please try again or contact support.',
+          ...(config.environment === 'development' && { devOtp: otp })
+        };
+      }
+
       // Send OTP via email for new users or when phone fails
       if (input.email) {
         const emailResult = await sendOTPEmail(input.email, otp);
@@ -335,10 +353,10 @@ export const authRouter = router({
 
       // Fallback (shouldn't reach here)
       return {
-        success: true,
-        method: 'email' as const,
+        success: false,
+        method: 'failed' as const,
         isNewUser: !user,
-        message: 'OTP generated. Check your email.',
+        message: 'Failed to send OTP. Please provide email or phone number.',
         ...(config.environment === 'development' && { devOtp: otp })
       };
     }),
