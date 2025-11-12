@@ -118,16 +118,31 @@ export default function AuthNew() {
       return;
     }
 
-    // Phone is required by backend, use a placeholder if using email method
-    const phoneToUse = method === 'phone' ? phone : '+27000000000';
+    // Validate phone when using email method
+    if (method === 'email' && (!phone || phone.length < 10)) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
 
-    signUpMutation.mutate({
-      phone: phoneToUse,
-      email: method === 'email' ? email : (email || undefined),
+    const payload: any = {
       password,
       userType,
       name
-    });
+    };
+
+    // Add email or phone based on method
+    if (method === 'email') {
+      payload.email = email;
+      payload.phone = phone;
+    } else {
+      payload.phone = phone;
+      // Add email only if provided
+      if (email && email.length > 0) {
+        payload.email = email;
+      }
+    }
+
+    signUpMutation.mutate(payload);
   };
 
   const formatPhoneNumber = (value: string) => {
@@ -299,7 +314,7 @@ export default function AuthNew() {
 
               {method === 'email' && (
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone (Optional)</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -308,6 +323,9 @@ export default function AuthNew() {
                     onChange={handlePhoneChange}
                     disabled={isLoading}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    We may need to contact you about jobs or payments
+                  </p>
                 </div>
               )}
 

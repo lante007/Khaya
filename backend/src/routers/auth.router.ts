@@ -19,11 +19,14 @@ const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 // Validation schemas
 const signUpSchema = z.object({
   email: z.string().email().optional(),
-  phone: z.string().refine(validatePhoneNumber, 'Invalid South African phone number'),
+  phone: z.string(),
   password: z.string().min(8),
   userType: z.enum(['buyer', 'worker', 'seller']),
   name: z.string().min(2)
-});
+}).refine(
+  (data) => data.email || validatePhoneNumber(data.phone),
+  { message: 'Valid email or South African phone number is required', path: ['phone'] }
+);
 
 const verifyOTPSchema = z.object({
   userId: z.string(),
@@ -68,36 +71,36 @@ export const authRouter = router({
     .input(signUpSchema)
     .mutation(async ({ input }) => {
       const userId = generateId('user');
-      const formattedPhone = formatPhoneNumber(input.phone);
+      const formattedPhone = input.phone ? formatPhoneNumber(input.phone) : undefined;
       
-      // Check if user already exists
-      const existingUsers = await queryByGSI('GSI1', 'GSI1PK', `PHONE#${formattedPhone}`);
-      if (existingUsers.length > 0) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'Phone number already registered'
-        });
+      // Check if user already exists by phone
+      if (formattedPhone) {
+        const existingUsers = await queryByGSI('GSI1', 'GSI1PK', `PHONE#${formattedPhone}`);
+        if (existingUsers.length > 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Phone number already registered'
+          });
+        }
+      }
+      
+      // Check if user already exists by email
+      if (input.email) {
+        const existingEmailUsers = await queryByGSI('GSI1', 'GSI1PK', `EMAIL#${input.email.toLowerCase()}`);
+        if (existingEmailUsers.length > 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Email already registered'
+          });
+        }
       }
       
       // Hash password
       const passwordHash = await hashPassword(input.password);
       
-      // Generate OTP
-      const otp = generateOTP();
-      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-      otpStore.set(userId, { otp, expiresAt });
+      // Create user profile (already verified via OTP in requestOTP flow)
+      const gsi1pk = formattedPhone ? `PHONE#${formattedPhone}` : `EMAIL#${input.email!.toLowerCase()}`;
       
-      // Send OTP
-      const otpResult = await sendOTP(formattedPhone, otp);
-      
-      if (!otpResult.success && config.environment === 'production') {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to send OTP. Please try again.'
-        });
-      }
-      
-      // Create user profile (unverified)
       await putItem({
         PK: `USER#${userId}`,
         SK: 'PROFILE',
@@ -108,22 +111,33 @@ export const authRouter = router({
         phone: formattedPhone,
         passwordHash,
         userType: input.userType,
-        verified: false,
-        phoneVerified: false,
+        verified: true, // Already verified via OTP
+        phoneVerified: !!formattedPhone,
+        emailVerified: !!input.email,
         trustScore: 0,
         completedJobs: 0,
         createdAt: timestamp(),
         updatedAt: timestamp(),
-        GSI1PK: `PHONE#${formattedPhone}`,
+        GSI1PK: gsi1pk,
         GSI1SK: `USER#${userId}`
       });
       
-      return {
+      // Generate token
+      const token = generateToken({
         userId,
-        otpSent: otpResult.success,
-        method: otpResult.method,
-        // Return OTP in development for testing
-        ...(config.environment === 'development' && { otp })
+        userType: input.userType,
+        email: input.email
+      });
+      
+      return {
+        token,
+        user: {
+          userId,
+          name: input.name,
+          email: input.email,
+          phone: formattedPhone,
+          userType: input.userType
+        }
       };
     }),
 
