@@ -184,6 +184,76 @@ export const adminRouter = router({
       };
     }),
 
+  // Get all users (simple version for admin pages)
+  getAllUsers: adminProcedure
+    .query(async () => {
+      const users = await queryItems({
+        FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
+        ExpressionAttributeValues: {
+          ':prefix': 'USER#',
+          ':sk': 'PROFILE'
+        }
+      });
+
+      return users.map((u: any) => ({
+        userId: u.userId,
+        email: u.email,
+        phone: u.phone,
+        name: u.name,
+        userType: u.userType,
+        status: u.status,
+        verified: u.verified,
+        createdAt: u.createdAt,
+        completedJobs: u.completedJobs || 0,
+        rating: u.rating || 0
+      }));
+    }),
+
+  // Get all jobs (simple version for admin pages)
+  getAllJobs: adminProcedure
+    .query(async () => {
+      const jobs = await queryItems({
+        FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
+        ExpressionAttributeValues: {
+          ':prefix': 'JOB#',
+          ':sk': 'METADATA'
+        }
+      });
+
+      return jobs.map((j: any) => ({
+        jobId: j.jobId,
+        title: j.title,
+        description: j.description,
+        location: j.location,
+        budget: j.budget,
+        status: j.status,
+        createdAt: j.createdAt,
+        bidsCount: j.bidsCount || 0
+      }));
+    }),
+
+  // Get all payments (simple version for admin pages)
+  getAllPayments: adminProcedure
+    .query(async () => {
+      const payments = await queryItems({
+        FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
+        ExpressionAttributeValues: {
+          ':prefix': 'PAYMENT#',
+          ':sk': 'METADATA'
+        }
+      });
+
+      return payments.map((p: any) => ({
+        paymentId: p.paymentId,
+        reference: p.reference,
+        amount: p.amount,
+        status: p.status,
+        jobTitle: p.jobTitle,
+        platformFee: p.feeBreakdown?.platformFee || 0,
+        createdAt: p.createdAt
+      }));
+    }),
+
   // List all users with filters
   listUsers: adminProcedure
     .input(z.object({
