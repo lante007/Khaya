@@ -389,25 +389,340 @@ export async function getReviewsForUser(userId: string) {
   return result.Items || [];
 }
 
-// ===== Milestone Management =====
+// ===== Escrow & Payment Management =====
 
-export async function createMilestone(data: any) {
-  // Milestones can be stored in jobs table or separate table
+const TABLE_NAME = process.env.DYNAMODB_TABLE || "khaya-prod";
+
+export async function createEscrow(data: any) {
+  const now = new Date().toISOString();
+  const escrowId = `escrow_${Date.now()}_${nanoid(8)}`;
+  
+  await docClient.send(new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `ESCROW#${escrowId}`,
+      SK: `ESCROW#${escrowId}`,
+      id: escrowId,
+      type: 'escrow',
+      jobId: data.jobId,
+      buyerId: data.buyerId,
+      workerId: data.workerId,
+      totalAmount: data.totalAmount,
+      depositAmount: data.depositAmount,
+      remainingAmount: data.remainingAmount,
+      status: data.status || 'pending',
+      paystackReference: data.paystackReference,
+      createdAt: now,
+      updatedAt: now,
+    },
+  }));
+  
+  return { id: escrowId, ...data, createdAt: now, updatedAt: now };
+}
+
+export async function getEscrowById(escrowId: string) {
+  const result = await docClient.send(new GetCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `ESCROW#${escrowId}`,
+      SK: `ESCROW#${escrowId}`,
+    },
+  }));
+  
+  return result.Item || null;
+}
+
+export async function getEscrowByJobId(jobId: string) {
+  const result = await docClient.send(new ScanCommand({
+    TableName: TABLE_NAME,
+    FilterExpression: "#type = :type AND jobId = :jobId",
+    ExpressionAttributeNames: { "#type": "type" },
+    ExpressionAttributeValues: { 
+      ":type": "escrow",
+      ":jobId": jobId 
+    },
+  }));
+  
+  return result.Items?.[0] || null;
+}
+
+export async function updateEscrowStatus(escrowId: string, status: string, updates: any = {}) {
+  const now = new Date().toISOString();
+  
+  await docClient.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `ESCROW#${escrowId}`,
+      SK: `ESCROW#${escrowId}`,
+    },
+    UpdateExpression: "SET #status = :status, updatedAt = :now" + 
+      (updates.paystackReference ? ", paystackReference = :ref" : "") +
+      (updates.depositPaidAt ? ", depositPaidAt = :depositPaidAt" : "") +
+      (updates.releasedAt ? ", releasedAt = :releasedAt" : ""),
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: {
+      ":status": status,
+      ":now": now,
+      ...(updates.paystackReference && { ":ref": updates.paystackReference }),
+      ...(updates.depositPaidAt && { ":depositPaidAt": updates.depositPaidAt }),
+      ...(updates.releasedAt && { ":releasedAt": updates.releasedAt }),
+    },
+  }));
+  
   return { success: true };
 }
 
+// ===== Milestone Management =====
+
+export async function createMilestone(data: any) {
+  const now = new Date().toISOString();
+  const milestoneId = `milestone_${Date.now()}_${nanoid(8)}`;
+  
+  await docClient.send(new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `MILESTONE#${milestoneId}`,
+      SK: `JOB#${data.jobId}`,
+      id: milestoneId,
+      type: 'milestone',
+      escrowId: data.escrowId,
+      jobId: data.jobId,
+      title: data.title,
+      description: data.description,
+      amount: data.amount,
+      status: data.status || 'pending',
+      createdAt: now,
+    },
+  }));
+  
+  return { id: milestoneId, ...data, createdAt: now };
+}
+
 export async function getMilestonesByJob(jobId: string) {
-  return [];
+  const result = await docClient.send(new QueryCommand({
+    TableName: TABLE_NAME,
+    IndexName: "GSI1",
+    KeyConditionExpression: "SK = :sk",
+    FilterExpression: "#type = :type",
+    ExpressionAttributeNames: { "#type": "type" },
+    ExpressionAttributeValues: { 
+      ":sk": `JOB#${jobId}`,
+      ":type": "milestone"
+    },
+  }));
+  
+  return result.Items || [];
+}
+
+export async function updateMilestoneStatus(milestoneId: string, status: string, updates: any = {}) {
+  const now = new Date().toISOString();
+  
+  await docClient.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `MILESTONE#${milestoneId}`,
+      SK: updates.jobId ? `JOB#${updates.jobId}` : undefined,
+    },
+    UpdateExpression: "SET #status = :status" +
+      (updates.proofUrl ? ", proofUrl = :proofUrl" : "") +
+      (updates.completedAt ? ", completedAt = :completedAt" : "") +
+      (updates.verifiedAt ? ", verifiedAt = :verifiedAt" : "") +
+      (updates.paidAt ? ", paidAt = :paidAt" : ""),
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: {
+      ":status": status,
+      ...(updates.proofUrl && { ":proofUrl": updates.proofUrl }),
+      ...(updates.completedAt && { ":completedAt": updates.completedAt }),
+      ...(updates.verifiedAt && { ":verifiedAt": updates.verifiedAt }),
+      ...(updates.paidAt && { ":paidAt": updates.paidAt }),
+    },
+  }));
+  
+  return { success: true };
 }
 
 // ===== Messaging =====
 
-export async function createMessage(data: any) {
+export async function createConversation(data: {
+  userId1: string;
+  userId2: string;
+  jobId?: number;
+}) {
+  const now = new Date().toISOString();
+  // Sort user IDs to ensure consistent conversation ID
+  const [user1, user2] = [data.userId1, data.userId2].sort();
+  const conversationId = `conv_${user1}_${user2}`;
+  
+  await docClient.send(new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `CONVERSATION#${conversationId}`,
+      SK: `CONVERSATION#${conversationId}`,
+      id: conversationId,
+      type: 'conversation',
+      participants: [user1, user2],
+      jobId: data.jobId,
+      unreadCount: {
+        [user1]: 0,
+        [user2]: 0,
+      },
+      createdAt: now,
+      updatedAt: now,
+    },
+  }));
+  
+  return { id: conversationId, participants: [user1, user2], createdAt: now };
+}
+
+export async function getOrCreateConversation(userId1: string, userId2: string, jobId?: number) {
+  const [user1, user2] = [userId1, userId2].sort();
+  const conversationId = `conv_${user1}_${user2}`;
+  
+  // Try to get existing conversation
+  const result = await docClient.send(new GetCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `CONVERSATION#${conversationId}`,
+      SK: `CONVERSATION#${conversationId}`,
+    },
+  }));
+  
+  if (result.Item) {
+    return result.Item;
+  }
+  
+  // Create new conversation
+  return await createConversation({ userId1, userId2, jobId });
+}
+
+export async function createMessage(data: {
+  conversationId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  type?: 'text' | 'image' | 'file';
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+}) {
+  const now = new Date().toISOString();
+  const timestamp = Date.now();
+  const messageId = `msg_${timestamp}_${nanoid(8)}`;
+  
+  await docClient.send(new PutCommand({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `CONVERSATION#${data.conversationId}`,
+      SK: `MESSAGE#${timestamp}#${messageId}`,
+      id: messageId,
+      type: 'message',
+      conversationId: data.conversationId,
+      senderId: data.senderId,
+      receiverId: data.receiverId,
+      content: data.content,
+      messageType: data.type || 'text',
+      fileUrl: data.fileUrl,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+      status: 'sent',
+      createdAt: now,
+    },
+  }));
+  
+  // Update conversation metadata
+  await docClient.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `CONVERSATION#${data.conversationId}`,
+      SK: `CONVERSATION#${data.conversationId}`,
+    },
+    UpdateExpression: "SET lastMessage = :msg, lastMessageAt = :time, updatedAt = :time, unreadCount.#receiver = unreadCount.#receiver + :inc",
+    ExpressionAttributeNames: {
+      "#receiver": data.receiverId,
+    },
+    ExpressionAttributeValues: {
+      ":msg": data.content.substring(0, 100),
+      ":time": now,
+      ":inc": 1,
+    },
+  }));
+  
+  return { id: messageId, ...data, status: 'sent', createdAt: now };
+}
+
+export async function getMessages(conversationId: string, limit: number = 50, since?: string) {
+  const params: any = {
+    TableName: TABLE_NAME,
+    KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+    ExpressionAttributeValues: {
+      ":pk": `CONVERSATION#${conversationId}`,
+      ":sk": "MESSAGE#",
+    },
+    ScanIndexForward: false, // Most recent first
+    Limit: limit,
+  };
+  
+  if (since) {
+    // Only get messages after this timestamp
+    const sinceTimestamp = new Date(since).getTime();
+    params.KeyConditionExpression += " AND SK > :since";
+    params.ExpressionAttributeValues[":since"] = `MESSAGE#${sinceTimestamp}`;
+  }
+  
+  const result = await docClient.send(new QueryCommand(params));
+  return (result.Items || []).reverse(); // Oldest first for display
+}
+
+export async function getUserConversations(userId: string) {
+  const result = await docClient.send(new ScanCommand({
+    TableName: TABLE_NAME,
+    FilterExpression: "#type = :type AND contains(participants, :userId)",
+    ExpressionAttributeNames: { "#type": "type" },
+    ExpressionAttributeValues: {
+      ":type": "conversation",
+      ":userId": userId,
+    },
+  }));
+  
+  return (result.Items || []).sort((a, b) => {
+    const timeA = new Date(a.lastMessageAt || a.createdAt).getTime();
+    const timeB = new Date(b.lastMessageAt || b.createdAt).getTime();
+    return timeB - timeA; // Most recent first
+  });
+}
+
+export async function markMessagesAsRead(conversationId: string, userId: string) {
+  await docClient.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `CONVERSATION#${conversationId}`,
+      SK: `CONVERSATION#${conversationId}`,
+    },
+    UpdateExpression: "SET unreadCount.#user = :zero",
+    ExpressionAttributeNames: {
+      "#user": userId,
+    },
+    ExpressionAttributeValues: {
+      ":zero": 0,
+    },
+  }));
+  
   return { success: true };
 }
 
 export async function getConversation(userId1: string, userId2: string) {
-  return [];
+  const [user1, user2] = [userId1, userId2].sort();
+  const conversationId = `conv_${user1}_${user2}`;
+  
+  const result = await docClient.send(new GetCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: `CONVERSATION#${conversationId}`,
+      SK: `CONVERSATION#${conversationId}`,
+    },
+  }));
+  
+  return result.Item || null;
 }
 
 // ===== Notifications =====
@@ -593,6 +908,62 @@ export async function likeStory(storyId: string) {
   }));
   
   return { success: true };
+}
+
+// ===== Additional Review Functions =====
+
+export async function getReviewsForWorker(workerId: string) {
+  const result = await docClient.send(new ScanCommand({
+    TableName: TABLES.reviews,
+    FilterExpression: "reviewedId = :workerId",
+    ExpressionAttributeValues: { ":workerId": workerId },
+  }));
+  
+  return result.Items || [];
+}
+
+export async function getReviewForJob(jobId: string, userId: string) {
+  const result = await docClient.send(new ScanCommand({
+    TableName: TABLES.reviews,
+    FilterExpression: "jobId = :jobId AND reviewerId = :userId",
+    ExpressionAttributeValues: { 
+      ":jobId": jobId,
+      ":userId": userId 
+    },
+  }));
+  
+  return result.Items?.[0] || null;
+}
+
+// ===== Additional Job Functions =====
+
+export async function getJobsByUser(userId: string) {
+  // Get jobs where user is either buyer or worker
+  const buyerJobs = await docClient.send(new ScanCommand({
+    TableName: TABLES.jobs,
+    FilterExpression: "buyerId = :userId",
+    ExpressionAttributeValues: { ":userId": userId },
+  }));
+  
+  // Get jobs where user has accepted bids
+  const bids = await getBidsByWorker(userId);
+  const acceptedBidJobIds = bids
+    .filter((bid: any) => bid.status === 'accepted')
+    .map((bid: any) => bid.jobId);
+  
+  const workerJobs = [];
+  for (const jobId of acceptedBidJobIds) {
+    const job = await getJobById(jobId);
+    if (job) workerJobs.push(job);
+  }
+  
+  // Combine and deduplicate
+  const allJobs = [...(buyerJobs.Items || []), ...workerJobs];
+  const uniqueJobs = Array.from(
+    new Map(allJobs.map(job => [job.id, job])).values()
+  );
+  
+  return uniqueJobs;
 }
 
 // Export getDb for compatibility

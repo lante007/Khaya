@@ -31,6 +31,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminJobs from "./pages/AdminJobs";
 import AdminPayments from "./pages/AdminPayments";
+import Messages from "./pages/Messages";
 
 function Router() {
   return (
@@ -49,6 +50,8 @@ function Router() {
       <Route path="/post-job" component={PostJob} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/profile" component={Profile} />
+      <Route path="/messages" component={Messages} />
+      <Route path="/messages/:conversationId" component={Messages} />
       <Route path="/referrals" component={Referrals} />
       <Route path="/stories" component={Stories} />
       <Route path="/provider/onboard" component={ProviderOnboard} />

@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (authToken: string) => {
     try {
-      // TODO: Replace with actual tRPC call
-      const response = await fetch('/api/trpc/auth.me', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc';
+      const response = await fetch(`${apiUrl}/auth.me?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -57,8 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
       
-      if (data.result?.data) {
-        setUser(data.result.data);
+      // tRPC batch response format
+      if (Array.isArray(data) && data[0]?.result?.data) {
+        setUser(data[0].result.data);
+      } else if (data[0]?.error) {
+        // Token is invalid
+        console.error('Auth error:', data[0].error);
+        localStorage.removeItem('token');
+        setToken(null);
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);

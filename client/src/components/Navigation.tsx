@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl, APP_TITLE } from "@/const";
-import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut } from "lucide-react";
+import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -62,6 +62,11 @@ export default function Navigation() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <>
+                <Link to="/messages">
+                  <Button variant="ghost" size="icon">
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
+                </Link>
                 <Link to="/post-job">
                   <Button variant="outline" className="flex items-center gap-2">
                     <PlusCircle className="w-4 h-4" />
@@ -131,6 +136,12 @@ export default function Navigation() {
               
               {isAuthenticated ? (
                 <>
+                  <Link to="/messages">
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      Messages
+                    </Button>
+                  </Link>
                   <Link to="/post-job">
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <PlusCircle className="w-4 h-4" />
