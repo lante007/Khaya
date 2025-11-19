@@ -17,6 +17,7 @@ Globals:
         JWT_SECRET: !Ref JwtSecret
         MAILERSEND_API_KEY: !Ref MailerSendApiKey
         PAYSTACK_SECRET_KEY: !Ref PaystackSecretKey
+        PAYSTACK_PUBLIC_KEY: !Ref PaystackPublicKey
         TWILIO_ACCOUNT_SID: !Ref TwilioAccountSid
         TWILIO_AUTH_TOKEN: !Ref TwilioAuthToken
         TWILIO_PHONE_NUMBER: !Ref TwilioPhoneNumber
@@ -37,6 +38,11 @@ Parameters:
     Type: String
     Description: Paystack API Secret Key
     NoEcho: true
+    Default: ""
+  
+  PaystackPublicKey:
+    Type: String
+    Description: Paystack API Public Key
     Default: ""
   
   TwilioAccountSid:

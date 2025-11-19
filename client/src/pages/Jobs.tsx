@@ -179,7 +179,7 @@ export default function Jobs() {
         ) : jobs && jobs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {jobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-lg transition-shadow">
+              <Card key={job.jobId} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
@@ -206,7 +206,7 @@ export default function Jobs() {
                         <DollarSign className="w-5 h-5" />
                         {formatPrice(job.budget)}
                       </div>
-                      <Link to={`/jobs/${job.id}`}>
+                      <Link to={`/jobs/${job.jobId}`}>
                         <Button size="sm">View & Bid</Button>
                       </Link>
                     </div>

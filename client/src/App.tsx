@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import JobDetail from "./pages/JobDetail";
 import WorkerDetail from "./pages/WorkerDetail";
+import WorkerResume from "./pages/WorkerResume";
 import MaterialDetail from "./pages/MaterialDetail";
 import Referrals from "./pages/Referrals";
 import Stories from "./pages/Stories";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/login" component={Auth} />
       <Route path="/signup" component={Auth} />
       <Route path="/workers" component={Workers} />
+      <Route path="/workers/:id/resume" component={WorkerResume} />
       <Route path="/workers/:id" component={WorkerDetail} />
       <Route path="/materials" component={Materials} />
       <Route path="/materials/:id" component={MaterialDetail} />

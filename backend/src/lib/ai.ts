@@ -205,3 +205,41 @@ export function calculateSimilarity(embedding1: number[], embedding2: number[]):
   
   return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
 }
+
+/**
+ * Enhance job description with AI
+ */
+export async function enhanceJobDescription(params: {
+  title: string;
+  description: string;
+  budget?: number;
+  location?: string;
+  category?: string;
+}): Promise<{ enhanced: string }> {
+  const prompt = `You are an expert at writing clear, professional job descriptions for home services in South Africa.
+
+Original Job:
+- Title: ${params.title}
+- Description: ${params.description}
+${params.category ? `- Category: ${params.category}` : ''}
+${params.location ? `- Location: ${params.location}` : ''}
+${params.budget ? `- Budget: R${params.budget}` : ''}
+
+Enhance this job description to be:
+1. Clear and specific about what needs to be done
+2. Professional but friendly
+3. Include relevant details workers need to know
+4. Keep it concise (2-4 paragraphs)
+5. Use South African English
+
+Return ONLY the enhanced description text, no JSON or formatting.`;
+
+  try {
+    const enhanced = await invokeClaude(prompt);
+    return { enhanced: enhanced.trim() };
+  } catch (error) {
+    console.error('AI enhancement error:', error);
+    // Return original if AI fails
+    return { enhanced: params.description };
+  }
+}

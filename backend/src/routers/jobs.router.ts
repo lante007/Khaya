@@ -8,21 +8,22 @@ import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure, clientOnlyProcedure } from '../trpc.js';
 import { putItem, getItem, updateItem, queryByGSI, queryItems, scanItems } from '../lib/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { addJobToResume } from '../lib/resume.js';
 
 export const jobsRouter = router({
   // Create job (clients only)
   create: clientOnlyProcedure
     .input(z.object({
-      title: z.string().min(5).max(200),
-      description: z.string().min(20),
+      title: z.string().min(3).max(200),
+      description: z.string().min(10),
       category: z.string(),
       location: z.string(),
       budget: z.number().positive(),
-      budgetType: z.enum(['fixed', 'hourly']),
+      budgetType: z.enum(['fixed', 'hourly']).optional().default('fixed'),
       duration: z.string().optional(),
-      skillsRequired: z.array(z.string()),
+      skillsRequired: z.array(z.string()).optional().default([]),
       attachments: z.array(z.string()).optional(),
-      urgency: z.enum(['low', 'medium', 'high']).default('medium')
+      urgency: z.enum(['low', 'medium', 'high']).optional().default('medium')
     }))
     .mutation(async ({ ctx, input }) => {
       const jobId = uuidv4();
@@ -38,11 +39,11 @@ export const jobsRouter = router({
         category: input.category,
         location: input.location,
         budget: input.budget,
-        budgetType: input.budgetType,
+        budgetType: input.budgetType || 'fixed',
         duration: input.duration,
-        skillsRequired: input.skillsRequired,
+        skillsRequired: input.skillsRequired || [],
         attachments: input.attachments || [],
-        urgency: input.urgency,
+        urgency: input.urgency || 'medium',
         status: 'open',
         bidCount: 0,
         createdAt: now,
@@ -465,6 +466,22 @@ export const jobsRouter = router({
               completedJobs: (worker.completedJobs || 0) + 1
             }
           );
+
+          // AUTO-UPDATE RÉSUMÉ: Add completed job to worker's résumé
+          try {
+            await addJobToResume(job.assignedWorkerId, {
+              jobId: input.jobId,
+              title: job.title,
+              description: job.description,
+              location: job.location,
+              rating: input.rating,
+              proofPhotos: [input.proofUrl],
+              gpsCoords: job.locationCoords
+            });
+          } catch (error) {
+            // Log but don't fail the job completion if résumé update fails
+            console.error('Failed to update worker résumé:', error);
+          }
         }
       }
 

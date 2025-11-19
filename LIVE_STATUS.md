@@ -74,7 +74,7 @@
 
 ### Payment Processing (LIVE)
 - ✅ Paystack Live Keys Configured
-- ✅ Public Key: pk_live_3473b2fa2c821a928aebf9833bec3e936f7feee7
+- ✅ Public Key: pk_live_YOUR_PAYSTACK_PUBLIC_KEY
 - ✅ Secret Key: Configured in Lambda
 - ✅ Real money transactions enabled
 - ✅ Webhook ready

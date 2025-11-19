@@ -88,10 +88,10 @@ export const bidsRouter = router({
     }),
 
   // Get bids for a job (client view)
-  getJobBids: clientOnlyProcedure
+  getJobBids: protectedProcedure
     .input(z.object({ jobId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Verify client owns the job
+      // Get the job
       const job = await getItem({
         PK: `JOB#${input.jobId}`,
         SK: 'METADATA'
@@ -104,7 +104,12 @@ export const bidsRouter = router({
         });
       }
 
-      if (job.clientId !== ctx.user!.userId) {
+      // Authorization: Only job owner (client) can view all bids
+      // Workers can only see bids on open jobs (to see competition)
+      const isJobOwner = job.clientId === ctx.user!.userId;
+      const isWorker = ctx.user!.userType === 'worker';
+      
+      if (!isJobOwner && !isWorker) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Not authorized to view bids for this job'

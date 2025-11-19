@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl, APP_TITLE } from "@/const";
-import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut, MessageCircle } from "lucide-react";
+import { Menu, X, Home, Briefcase, Package, PlusCircle, User, LogOut, MessageCircle, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -41,7 +41,8 @@ export default function Navigation() {
               <Home className="w-4 h-4" />
               Home
             </Link>
-            <Link to="/stories" className="text-foreground hover:text-primary transition-colors font-medium">
+            <Link to="/stories" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
               Stories
             </Link>
             <Link to="/workers" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2">
@@ -73,13 +74,18 @@ export default function Navigation() {
                     Post a Job
                   </Button>
                 </Link>
-                <Link to="/dashboard">
+                <Link to="/profile">
                   <Button variant="outline" className="flex items-center gap-2">
                     <Avatar 
                       src={user?.profilePictureUrl} 
                       name={user?.name} 
                       size="xs"
                     />
+                    My Profile
+                  </Button>
+                </Link>
+                <Link to="/dashboard">
+                  <Button variant="outline" className="flex items-center gap-2">
                     Dashboard
                   </Button>
                 </Link>
@@ -121,6 +127,10 @@ export default function Navigation() {
                 <Home className="w-4 h-4" />
                 Home
               </Link>
+              <Link to="/stories" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
+                <BookOpen className="w-4 h-4" />
+                Stories
+              </Link>
               <Link to="/workers" className="text-foreground hover:text-primary transition-colors font-medium flex items-center gap-2 py-2">
                 <Briefcase className="w-4 h-4" />
                 Find Workers
@@ -134,6 +144,8 @@ export default function Navigation() {
                 Browse Jobs
               </Link>
               
+              {isAuthenticated && <div className="border-t border-border my-2" />}
+              
               {isAuthenticated ? (
                 <>
                   <Link to="/messages">
@@ -146,6 +158,12 @@ export default function Navigation() {
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <PlusCircle className="w-4 h-4" />
                       Post a Job
+                    </Button>
+                  </Link>
+                  <Link to="/profile">
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <User className="w-4 h-4" />
+                      My Profile
                     </Button>
                   </Link>
                   <Link to="/dashboard">

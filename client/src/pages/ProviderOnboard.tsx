@@ -5,19 +5,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { Upload, CheckCircle } from "lucide-react";
+import { Upload, CheckCircle, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-const TRADES = ["Plumber", "Electrician", "Builder", "Carpenter", "Painter", "Roofer", "Tiler", "Landscaper", "General Worker"];
+const TRADES = [
+  "Electrician",
+  "Plumber",
+  "Builder",
+  "Bricklayer",
+  "Tiler",
+  "Carpenter",
+  "Painter",
+  "Welder",
+  "Roofer",
+  "Architect / Draughtsman",
+  "Land Surveyor",
+  "Security Installer",
+  "General Handyman"
+];
 
 export default function ProviderOnboard() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    trade: "",
+    trades: [] as string[],
     bio: "",
     location: "",
     yearsExperience: 0,
@@ -26,7 +41,7 @@ export default function ProviderOnboard() {
     photoUrl: "",
   });
 
-  const createProfile = trpc.profile.upsert.useMutation();
+  const createProfile = trpc.user.updateProfile.useMutation();
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1);
@@ -82,11 +97,44 @@ export default function ProviderOnboard() {
             {step === 1 && (
               <>
                 <div>
-                  <Label>Trade/Profession</Label>
-                  <Select value={formData.trade} onValueChange={(v) => setFormData({ ...formData, trade: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select your trade" /></SelectTrigger>
-                    <SelectContent>{TRADES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <Label className="mb-3 block">Select Your Skills (one or more)</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    {TRADES.map((trade) => (
+                      <div key={trade} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={trade}
+                          checked={formData.trades.includes(trade)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFormData({ ...formData, trades: [...formData.trades, trade] });
+                            } else {
+                              setFormData({ ...formData, trades: formData.trades.filter(t => t !== trade) });
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={trade}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {trade}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {formData.trades.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-md">
+                      <span className="text-sm text-muted-foreground">Selected:</span>
+                      {formData.trades.map((trade) => (
+                        <Badge key={trade} variant="secondary" className="gap-1">
+                          {trade}
+                          <X
+                            className="w-3 h-3 cursor-pointer"
+                            onClick={() => setFormData({ ...formData, trades: formData.trades.filter(t => t !== trade) })}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Bio</Label>
@@ -99,7 +147,7 @@ export default function ProviderOnboard() {
               <>
                 <div>
                   <Label>Years of Experience</Label>
-                  <Input type="number" value={formData.yearsExperience} onChange={(e) => setFormData({ ...formData, yearsExperience: parseInt(e.target.value) })} />
+                  <Input type="number" value={formData.yearsExperience || ''} onChange={(e) => setFormData({ ...formData, yearsExperience: parseInt(e.target.value) || 0 })} />
                 </div>
                 <div>
                   <Label>Certifications (optional)</Label>

@@ -13,7 +13,13 @@ type UserType = 'buyer' | 'worker' | 'seller';
 
 export default function AuthNew() {
   const [, setLocation] = useLocation();
-  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  
+  // Read URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlMode = urlParams.get('mode') as 'signup' | 'signin' | null;
+  const urlRole = urlParams.get('role') as UserType | null;
+  
+  const [mode, setMode] = useState<'signup' | 'signin'>(urlMode || 'signup');
   const [step, setStep] = useState<'contact' | 'otp' | 'profile'>('contact');
   const [method, setMethod] = useState<'phone' | 'email'>('email');
   const [phone, setPhone] = useState('');
@@ -21,18 +27,21 @@ export default function AuthNew() {
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<UserType>('buyer');
+  const [userType, setUserType] = useState<UserType>(urlRole || 'buyer');
   const [userId, setUserId] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
 
   // Request OTP mutation
   const requestOTPMutation = trpc.auth.requestOTP.useMutation({
     onSuccess: (data) => {
+      console.log('OTP request success, changing step to otp');
       const destination = method === 'email' ? 'email' : 'phone';
       toast.success(`OTP sent to your ${destination}!`);
       setStep('otp');
+      console.log('Step changed to:', 'otp');
     },
     onError: (error) => {
+      console.error('OTP request error:', error);
       toast.error(`Failed to send OTP: ${error.message}`);
     },
   });
@@ -40,6 +49,7 @@ export default function AuthNew() {
   // Verify OTP mutation
   const verifyOTPMutation = trpc.auth.verifyOTP.useMutation({
     onSuccess: (data) => {
+      console.log('OTP verification success:', data);
       if (data.isNewUser) {
         const verified = method === 'email' ? 'Email' : 'Phone';
         toast.success(`${verified} verified! Please complete your profile.`);
@@ -47,6 +57,7 @@ export default function AuthNew() {
         setStep('profile');
       } else {
         // Existing user - save token and redirect
+        console.log('Existing user login, saving token');
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Welcome back!');
@@ -54,13 +65,15 @@ export default function AuthNew() {
       }
     },
     onError: (error) => {
+      console.error('OTP verification error:', error);
       toast.error(`Invalid OTP: ${error.message}`);
     },
   });
 
-  // Sign in mutation
+  // Sign in with password
   const signInMutation = trpc.auth.signIn.useMutation({
     onSuccess: (data) => {
+      console.log('Sign in success:', data);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
         userId: data.userId,
@@ -70,6 +83,7 @@ export default function AuthNew() {
       setLocation('/dashboard');
     },
     onError: (error) => {
+      console.error('Sign in error:', error);
       toast.error(`Sign in failed: ${error.message}`);
     },
   });
@@ -209,15 +223,15 @@ export default function AuthNew() {
             <Home className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl">
-            {mode === 'signin' && 'Welcome Back'}
+            {mode === 'signin' && step === 'contact' && 'Welcome Back'}
             {mode === 'signup' && step === 'contact' && 'Welcome to Project Khaya'}
-            {mode === 'signup' && step === 'otp' && `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
+            {step === 'otp' && `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
             {mode === 'signup' && step === 'profile' && 'Complete Your Profile'}
           </CardTitle>
           <CardDescription>
-            {mode === 'signin' && 'Sign in to your account'}
+            {mode === 'signin' && step === 'contact' && 'Sign in to your account'}
             {mode === 'signup' && step === 'contact' && 'Enter your contact details to get started'}
-            {mode === 'signup' && step === 'otp' && `Enter the OTP sent to your ${method === 'phone' ? 'phone' : 'email'}`}
+            {step === 'otp' && `Enter the OTP sent to your ${method === 'phone' ? 'phone' : 'email'}`}
             {mode === 'signup' && step === 'profile' && 'Tell us a bit about yourself'}
           </CardDescription>
         </CardHeader>
@@ -267,6 +281,7 @@ export default function AuthNew() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
                 />
               </div>
 
@@ -284,6 +299,15 @@ export default function AuthNew() {
                   'Sign In'
                 )}
               </Button>
+              
+              <div className="text-center text-sm">
+                <a href="#" className="text-primary hover:underline" onClick={(e) => {
+                  e.preventDefault();
+                  toast.info('Password reset feature coming soon!');
+                }}>
+                  Forgot password?
+                </a>
+              </div>
 
               <div className="text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
@@ -369,7 +393,7 @@ export default function AuthNew() {
             </div>
           )}
 
-          {mode === 'signup' && step === 'otp' && (
+          {step === 'otp' && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="otp">Verification Code</Label>

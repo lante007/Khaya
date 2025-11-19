@@ -43,7 +43,22 @@ const trpcClient = trpc.createClient({
       url: import.meta.env.VITE_API_URL || "https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc",
       transformer: superjson,
       headers() {
-        const token = localStorage.getItem('token');
+        // Prioritize admin token on admin routes
+        const userToken = localStorage.getItem('token');
+        const adminToken = localStorage.getItem('adminToken');
+        
+        // Use admin token if on admin route, otherwise use user token
+        const isAdminRoute = window.location.pathname.startsWith('/admin');
+        const token = isAdminRoute ? (adminToken || userToken) : (userToken || adminToken);
+        
+        // Debug logging
+        if (isAdminRoute) {
+          console.log('[tRPC Headers] Admin route detected');
+          console.log('[tRPC Headers] userToken:', userToken ? 'exists' : 'null');
+          console.log('[tRPC Headers] adminToken:', adminToken ? 'exists' : 'null');
+          console.log('[tRPC Headers] Using token:', token ? token.substring(0, 20) + '...' : 'none');
+        }
+        
         return {
           authorization: token ? `Bearer ${token}` : '',
         };

@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, publicProcedure } from '../trpc.js';
-import { putItem, getItem, updateItem, queryItems, queryByGSI } from '../lib/db.js';
+import { putItem, getItem, updateItem, queryItems, queryByGSI, scanItems } from '../lib/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -114,7 +114,7 @@ export const adminRouter = router({
   getDashboardStats: adminProcedure
     .query(async () => {
       // Get all users
-      const users = await queryItems({
+      const users = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'USER#',
@@ -123,7 +123,7 @@ export const adminRouter = router({
       });
 
       // Get all jobs
-      const jobs = await queryItems({
+      const jobs = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'JOB#',
@@ -132,7 +132,7 @@ export const adminRouter = router({
       });
 
       // Get all payments
-      const payments = await queryItems({
+      const payments = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'PAYMENT#',
@@ -187,7 +187,7 @@ export const adminRouter = router({
   // Get all users (simple version for admin pages)
   getAllUsers: adminProcedure
     .query(async () => {
-      const users = await queryItems({
+      const users = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'USER#',
@@ -212,7 +212,7 @@ export const adminRouter = router({
   // Get all jobs (simple version for admin pages)
   getAllJobs: adminProcedure
     .query(async () => {
-      const jobs = await queryItems({
+      const jobs = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'JOB#',
@@ -235,7 +235,7 @@ export const adminRouter = router({
   // Get all payments (simple version for admin pages)
   getAllPayments: adminProcedure
     .query(async () => {
-      const payments = await queryItems({
+      const payments = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'PAYMENT#',
@@ -264,7 +264,7 @@ export const adminRouter = router({
       cursor: z.string().optional()
     }))
     .query(async ({ input }) => {
-      let users = await queryItems({
+      let users = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'USER#',
@@ -362,7 +362,7 @@ export const adminRouter = router({
       cursor: z.string().optional()
     }))
     .query(async ({ input }) => {
-      let jobs = await queryItems({
+      let jobs = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'JOB#',
@@ -397,7 +397,7 @@ export const adminRouter = router({
       cursor: z.string().optional()
     }))
     .query(async ({ input }) => {
-      let payments = await queryItems({
+      let payments = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk',
         ExpressionAttributeValues: {
           ':prefix': 'PAYMENT#',
@@ -435,7 +435,7 @@ export const adminRouter = router({
       const end = new Date(input.endDate);
 
       // Get all relevant data
-      const users = await queryItems({
+      const users = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk AND createdAt BETWEEN :start AND :end',
         ExpressionAttributeValues: {
           ':prefix': 'USER#',
@@ -445,7 +445,7 @@ export const adminRouter = router({
         }
       });
 
-      const jobs = await queryItems({
+      const jobs = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk AND createdAt BETWEEN :start AND :end',
         ExpressionAttributeValues: {
           ':prefix': 'JOB#',
@@ -455,7 +455,7 @@ export const adminRouter = router({
         }
       });
 
-      const payments = await queryItems({
+      const payments = await scanItems({
         FilterExpression: 'begins_with(PK, :prefix) AND SK = :sk AND createdAt BETWEEN :start AND :end',
         ExpressionAttributeValues: {
           ':prefix': 'PAYMENT#',

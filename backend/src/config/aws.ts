@@ -48,11 +48,14 @@ export const config = {
   cognitoClientId: process.env.COGNITO_CLIENT_ID || '',
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
-  twilioWhatsAppNumber: process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER || '',
+  twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
+  twilioWhatsAppNumber: process.env.TWILIO_WHATSAPP_NUMBER || '',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || '',
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  environment: process.env.NODE_ENV || process.env.ENVIRONMENT || 'dev'
+  environment: process.env.NODE_ENV || process.env.ENVIRONMENT || 'dev',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  mailerSendApiKey: process.env.MAILERSEND_API_KEY || ''
 };
 
 export default config;

@@ -115,3 +115,28 @@ backend/.aws-sam/
 # Sensitive configuration files
 samconfig.toml
 **/samconfig.toml
+ADMIN_CREDENTIALS.md
+reset-admin-password.js
+
+# API Keys and Secrets (DO NOT COMMIT)
+**/secrets.json
+**/*secret*.json
+**/*credentials*.json
+**/*keys*.json
+**/api-keys.txt
+**/.env*
+!**/.env.example
+
+# Backup files with potential secrets
+**/backup-*.tar.gz
+**/backup-*.zip
+**/*-backup-*
+
+# AWS credentials
+.aws/
+**/.aws/credentials
+**/.aws/config
+
+# Private documentation
+PRIVATE_*.md
+**/SECRETS_*.md

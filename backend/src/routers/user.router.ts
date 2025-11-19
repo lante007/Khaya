@@ -40,7 +40,13 @@ export const userRouter = router({
       businessName: z.string().optional(),
       businessReg: z.string().optional(),
       businessAddress: z.string().optional(),
-      profilePictureUrl: z.string().optional()
+      profilePictureUrl: z.string().optional(),
+      trade: z.string().optional(),
+      trades: z.array(z.string()).optional(),
+      yearsExperience: z.number().optional(),
+      certifications: z.string().optional(),
+      photoUrl: z.string().optional(),
+      languages: z.string().optional()
     }))
     .mutation(async ({ ctx, input }) => {
       const updates: any = {};
@@ -54,6 +60,12 @@ export const userRouter = router({
       if (input.businessReg) updates.businessReg = input.businessReg;
       if (input.businessAddress) updates.businessAddress = input.businessAddress;
       if (input.profilePictureUrl !== undefined) updates.profilePictureUrl = input.profilePictureUrl;
+      if (input.trade) updates.trade = input.trade;
+      if (input.trades) updates.trades = input.trades;
+      if (input.yearsExperience !== undefined) updates.yearsExperience = input.yearsExperience;
+      if (input.certifications) updates.certifications = input.certifications;
+      if (input.photoUrl) updates.photoUrl = input.photoUrl;
+      if (input.languages) updates.languages = input.languages;
       
       updates.updatedAt = new Date().toISOString();
 

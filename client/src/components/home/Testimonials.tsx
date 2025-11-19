@@ -8,7 +8,7 @@ export const Testimonials = () => {
       quote: "I needed my bathroom fixed urgently. Posted the job, got 4 bids within hours, and hired someone who finished in 2 days. Amazing!",
       name: "Thandi K.",
       role: "Homeowner, Pietermaritzburg",
-      initial: "T",
+      image: "/african_lady_homeowner.png",
       jobDetail: "Job: Bathroom Plumbing Repair"
     },
     {
@@ -16,7 +16,7 @@ export const Testimonials = () => {
       quote: "I've landed 12 jobs in 2 months through Project Khaya. The bidding system is fair and payments are always on time.",
       name: "Sipho M.",
       role: "Electrician, Durban",
-      initial: "S",
+      image: "/black_man_electrician.png",
       jobDetail: "12 jobs completed | R45,000 earned"
     },
     {
@@ -24,7 +24,7 @@ export const Testimonials = () => {
       quote: "Project Khaya connects me directly with customers who need materials. My sales have tripled since joining.",
       name: "Ben's Hardware",
       role: "Supplier, Mooi River",
-      initial: "B",
+      image: "https://api.dicebear.com/7.x/initials/svg?seed=BH&backgroundColor=2563eb&textColor=ffffff",
       jobDetail: "Sales tripled in 3 months"
     }
   ];
@@ -54,9 +54,11 @@ export const Testimonials = () => {
                   "{testimonial.quote}"
                 </p>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg md:text-xl flex-shrink-0">
-                    {testimonial.initial}
-                  </div>
+                  <img 
+                    src={testimonial.image} 
+                    alt={testimonial.name}
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover flex-shrink-0"
+                  />
                   <div>
                     <p className="font-bold text-foreground text-sm md:text-base">{testimonial.name}</p>
                     <p className="text-sm text-muted-foreground">{testimonial.role}</p>

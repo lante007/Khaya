@@ -52,10 +52,20 @@ export default function PostJob() {
       return;
     }
     createJob.mutate({
-      title, description, category, budget: parseFloat(budget), location,
+      title, 
+      description, 
+      category, 
+      budget: parseFloat(budget), 
+      location,
     }, {
-      onSuccess: () => { toast.success("Job posted successfully!"); setLocation("/dashboard"); },
-      onError: () => toast.error("Failed to post job"),
+      onSuccess: () => { 
+        toast.success("Job posted successfully!"); 
+        setLocation("/dashboard"); 
+      },
+      onError: (error) => {
+        console.error('Job posting error:', error);
+        toast.error(error.message || "Failed to post job. Please try again.");
+      },
     });
   };
   

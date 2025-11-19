@@ -124,6 +124,9 @@ export async function createPaymentSession(params: {
   jobId: string;
   userType: 'buyer' | 'worker';
   completedJobs: number;
+  reference?: string;
+  metadata?: Record<string, any>;
+  callback_url?: string;
 }): Promise<{
   sessionId: string;
   authorizationUrl: string;
@@ -137,8 +140,16 @@ export async function createPaymentSession(params: {
     message: string;
   };
 }> {
+  console.log('[Paystack] createPaymentSession called:', { 
+    email: params.email, 
+    amount: params.amount, 
+    jobId: params.jobId,
+    userType: params.userType
+  });
+  
   const amountInKobo = params.amount * 100; // Convert ZAR to kobo
   const feeWaived = hasFeeWaiver(params.completedJobs, params.userType);
+  console.log('[Paystack] Fee waived:', feeWaived);
   
   let feeBreakdown;
   let finalAmount;
@@ -168,21 +179,26 @@ export async function createPaymentSession(params: {
     finalAmount = params.userType === 'buyer' ? calc.total : amountInKobo;
   }
   
-  // Generate unique reference
-  const reference = `khaya_${params.jobId}_${Date.now()}`;
+  // Generate unique reference or use provided one
+  const reference = params.reference || `khaya_${params.jobId}_${Date.now()}`;
   
-  // Initialize payment
+  // Merge metadata
+  const metadata = {
+    userId: params.userId,
+    jobId: params.jobId,
+    userType: params.userType,
+    feeWaived,
+    originalAmount: params.amount,
+    ...(params.metadata || {})
+  };
+  
+  // Initialize payment with callback URL
   const payment = await initializePayment({
     email: params.email,
     amount: finalAmount,
     reference,
-    metadata: {
-      userId: params.userId,
-      jobId: params.jobId,
-      userType: params.userType,
-      feeWaived,
-      originalAmount: params.amount
-    }
+    metadata,
+    callback_url: params.callback_url
   });
   
   return {

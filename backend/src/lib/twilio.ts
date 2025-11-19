@@ -13,9 +13,17 @@ const client = twilio(config.twilioAccountSid, config.twilioAuthToken);
  */
 export async function sendWhatsAppOTP(phone: string, otp: string): Promise<boolean> {
   try {
+    // Check if WhatsApp is configured
+    if (!config.twilioWhatsAppNumber || !config.twilioWhatsAppNumber.includes('whatsapp:')) {
+      console.log('[WhatsApp] Not configured, skipping WhatsApp delivery');
+      return false;
+    }
+    
     // Format phone number for WhatsApp (must start with whatsapp:)
     const whatsappNumber = `whatsapp:${phone}`;
-    const fromNumber = `whatsapp:${config.twilioWhatsAppNumber}`;
+    const fromNumber = config.twilioWhatsAppNumber.startsWith('whatsapp:') 
+      ? config.twilioWhatsAppNumber 
+      : `whatsapp:${config.twilioWhatsAppNumber}`;
     
     const message = await client.messages.create({
       body: `Your Project Khaya verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this message.`,
@@ -36,16 +44,26 @@ export async function sendWhatsAppOTP(phone: string, otp: string): Promise<boole
  */
 export async function sendSMSOTP(phone: string, otp: string): Promise<boolean> {
   try {
+    // Use TWILIO_PHONE_NUMBER environment variable directly
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER || config.twilioWhatsAppNumber?.replace('whatsapp:', '');
+    
+    if (!fromNumber) {
+      console.error('[SMS] No Twilio phone number configured');
+      return false;
+    }
+    
+    console.log(`[SMS] Sending OTP from ${fromNumber} to ${phone}`);
+    
     const message = await client.messages.create({
       body: `Your Project Khaya verification code is: ${otp}. Valid for 10 minutes.`,
-      from: config.twilioWhatsAppNumber.replace('whatsapp:', ''),
+      from: fromNumber,
       to: phone
     });
     
-    console.log(`SMS OTP sent: ${message.sid}`);
+    console.log(`[SMS] OTP sent successfully: ${message.sid}`);
     return true;
   } catch (error) {
-    console.error('SMS OTP error:', error);
+    console.error('[SMS] OTP error:', error);
     return false;
   }
 }
@@ -119,17 +137,23 @@ export async function sendJobNotification(params: {
 }): Promise<boolean> {
   try {
     const formattedPhone = formatPhoneNumber(params.phone);
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER || config.twilioPhoneNumber;
+    
+    if (!fromNumber) {
+      console.error('[SMS] No Twilio phone number configured for notifications');
+      return false;
+    }
     
     const message = await client.messages.create({
       body: params.message,
-      from: config.twilioWhatsAppNumber.replace('whatsapp:', ''),
+      from: fromNumber,
       to: formattedPhone
     });
     
-    console.log(`Job notification sent: ${message.sid}`);
+    console.log(`[SMS] Job notification sent: ${message.sid}`);
     return true;
   } catch (error) {
-    console.error('Job notification error:', error);
+    console.error('[SMS] Job notification error:', error);
     return false;
   }
 }

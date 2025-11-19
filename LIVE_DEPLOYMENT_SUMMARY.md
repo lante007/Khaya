@@ -101,11 +101,11 @@ VITE_API_URL=https://p5gc1z4as1.execute-api.us-east-1.amazonaws.com/prod/trpc
 VITE_AWS_REGION=us-east-1
 VITE_COGNITO_USER_POOL_ID=us-east-1_1iwRbFuVi
 VITE_COGNITO_CLIENT_ID=6mr44snsb06qcsrfsdm2j7061o
-VITE_PAYSTACK_PUBLIC_KEY=pk_live_3473b2fa2c821a928aebf9833bec3e936f7feee7
+VITE_PAYSTACK_PUBLIC_KEY=pk_live_YOUR_PAYSTACK_PUBLIC_KEY
 ```
 
 ### Paystack Configuration
-- **Public Key:** pk_live_3473b2fa2c821a928aebf9833bec3e936f7feee7
+- **Public Key:** pk_live_YOUR_PAYSTACK_PUBLIC_KEY
 - **Secret Key:** Configured in Lambda (secure)
 - **Mode:** LIVE (real payments)
 

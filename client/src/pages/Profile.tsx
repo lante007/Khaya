@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { ProfileCompletionBadge, calculateProfileCompletion } from "@/components/ProfileCompletionBadge";
@@ -12,21 +15,42 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
+import { FileText } from "lucide-react";
+
+const TRADES = [
+  "Electrician",
+  "Plumber",
+  "Builder",
+  "Bricklayer",
+  "Tiler",
+  "Carpenter",
+  "Painter",
+  "Welder",
+  "Roofer",
+  "Architect / Draughtsman",
+  "Land Surveyor",
+  "Security Installer",
+  "General Handyman"
+];
 
 export default function Profile() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const { data: profile, refetch: refetchProfile } = trpc.user.getProfile.useQuery();
   const updateProfile = trpc.user.updateProfile.useMutation();
   const [bio, setBio] = useState("");
-  const [trade, setTrade] = useState("");
-  const [location, setLocation] = useState("");
+  const [trades, setTrades] = useState<string[]>([]);
+  const [locationState, setLocationState] = useState("");
+  const [languages, setLanguages] = useState("");
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   
   useEffect(() => {
     if (profile) {
       setBio(profile.bio || "");
-      setTrade(profile.skills?.[0] || "");
-      setLocation(profile.location || "");
+      setTrades(profile.trades || profile.skills || []);
+      setLocationState(profile.location || "");
+      setLanguages(profile.languages || "");
       setProfilePictureUrl(profile.profilePictureUrl || null);
     }
   }, [profile]);
@@ -38,16 +62,17 @@ export default function Profile() {
     phone: user?.phone,
     profilePictureUrl: profilePictureUrl,
     bio: bio,
-    location: location,
-    skills: trade ? [trade] : [],
+    location: locationState,
+    skills: trades,
     verified: user?.verified
   });
   
   const handleSave = () => {
     updateProfile.mutate({
       bio, 
-      location, 
-      skills: trade ? [trade] : undefined,
+      location: locationState,
+      languages: languages || undefined,
+      trades: trades.length > 0 ? trades : undefined,
     }, {
       onSuccess: () => {
         toast.success("Profile updated!");
@@ -69,7 +94,18 @@ export default function Profile() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
       <div className="container py-8 max-w-3xl">
-        <h1 className="text-4xl font-bold mb-8">My Profile</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold">My Profile</h1>
+          {user?.userId && (
+            <Button
+              variant="outline"
+              onClick={() => setLocation(`/workers/${user.userId}/resume`)}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View My Résumé
+            </Button>
+          )}
+        </div>
 
         {/* Profile Completion Card */}
         <ProfileCompletionBadge
@@ -157,21 +193,66 @@ export default function Profile() {
               <div>
                 <Label>Location</Label>
                 <Input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  value={locationState}
+                  onChange={(e) => setLocationState(e.target.value)}
                   placeholder="e.g., Estcourt"
                 />
               </div>
               {user?.role === "worker" && (
                 <div>
-                  <Label>Trade/Skill</Label>
-                  <Input
-                    value={trade}
-                    onChange={(e) => setTrade(e.target.value)}
-                    placeholder="e.g., Plumber, Electrician"
-                  />
+                  <Label className="mb-3 block">Your Skills (select all that apply)</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    {TRADES.map((trade) => (
+                      <div key={trade} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`profile-${trade}`}
+                          checked={trades.includes(trade)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setTrades([...trades, trade]);
+                            } else {
+                              setTrades(trades.filter(t => t !== trade));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`profile-${trade}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {trade}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {trades.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-md">
+                      <span className="text-sm text-muted-foreground">Selected:</span>
+                      {trades.map((trade) => (
+                        <Badge key={trade} variant="secondary" className="gap-1">
+                          {trade}
+                          <X
+                            className="w-3 h-3 cursor-pointer"
+                            onClick={() => setTrades(trades.filter(t => t !== trade))}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+              
+              <div>
+                <Label>Languages Spoken</Label>
+                <Input
+                  value={languages}
+                  onChange={(e) => setLanguages(e.target.value)}
+                  placeholder="e.g., English, Zulu, Afrikaans"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Separate multiple languages with commas
+                </p>
+              </div>
+              
               <Button onClick={handleSave} disabled={updateProfile.isPending}>
                 Save Changes
               </Button>

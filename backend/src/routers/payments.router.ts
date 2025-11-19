@@ -14,16 +14,131 @@ import {
   calculateFee,
   verifyWebhookSignature 
 } from '../lib/paystack.js';
+import { config } from '../config/aws.js';
 
 export const paymentsRouter = router({
-  // Initialize payment (client creates escrow)
+  // Initialize payment (client creates escrow) - Original version
   initializePayment: clientOnlyProcedure
+    .input(z.object({
+      jobId: z.union([z.string(), z.number()]).optional(),
+      amount: z.number().positive(),
+      description: z.string().optional(),
+      email: z.string().email(),
+      reference: z.string().optional(),
+      metadata: z.any().optional()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const jobId = input.jobId ? input.jobId.toString() : undefined;
+      const description = input.description || 'Payment for job';
+      
+      // If jobId provided, verify job ownership
+      if (jobId) {
+        const job = await getItem({
+          PK: `JOB#${jobId}`,
+          SK: 'METADATA'
+        });
+
+        if (job && job.clientId !== ctx.user!.userId) {
+          console.error('[Payment] Unauthorized access:', { jobClientId: job.clientId, userId: ctx.user!.userId });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Not authorized'
+          });
+        }
+      }
+
+      // Get user details
+      const user = await getItem({
+        PK: `USER#${ctx.user!.userId}`,
+        SK: 'PROFILE'
+      });
+
+      if (!user) {
+        console.error('[Payment] User not found:', ctx.user!.userId);
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'User not found'
+        });
+      }
+
+      console.log('[Payment] User details:', { email: input.email, completedJobs: user.completedJobs });
+
+      const paymentId = uuidv4();
+      const reference = input.reference || `khaya_${paymentId}_${Date.now()}`;
+
+      // Create Paystack payment session
+      try {
+        console.log('[Payment] Creating Paystack session...');
+        
+        // Build callback URL - redirect to job page after payment
+        const callbackUrl = jobId 
+          ? `${config.frontendUrl}/jobs/${jobId}?payment=success`
+          : `${config.frontendUrl}/dashboard?payment=success`;
+        
+        const session = await createPaymentSession({
+          userId: ctx.user!.userId,
+          email: input.email,
+          amount: input.amount,
+          jobId: jobId || 'no-job',
+          userType: 'buyer',
+          completedJobs: user.completedJobs || 0,
+          reference,
+          metadata: input.metadata,
+          callback_url: callbackUrl
+        });
+        console.log('[Payment] Paystack session created:', { reference: session.reference, callbackUrl });
+
+        // Store payment record
+        const payment = {
+          PK: `PAYMENT#${paymentId}`,
+          SK: 'METADATA',
+          paymentId,
+          jobId: jobId || 'no-job',
+          clientId: ctx.user!.userId,
+          amount: input.amount,
+          description,
+          status: 'pending',
+          paystackReference: session.reference,
+          paystackAccessCode: session.sessionId,
+          feeBreakdown: session.feeBreakdown,
+          createdAt: new Date().toISOString(),
+          GSI1PK: jobId ? `JOB#${jobId}` : `USER#${ctx.user!.userId}`,
+          GSI1SK: new Date().toISOString(),
+          metadata: input.metadata
+        };
+
+        await putItem(payment);
+
+        return {
+          success: true,
+          data: {
+            authorization_url: session.authorizationUrl,
+            access_code: session.sessionId,
+            reference: session.reference
+          },
+          paymentId,
+          feeBreakdown: session.feeBreakdown
+        };
+      } catch (error: any) {
+        console.error('[Payment] Paystack error:', error);
+        console.error('[Payment] Error details:', { message: error.message, stack: error.stack });
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Failed to initialize payment: ${error.message || 'Unknown error'}`
+        });
+      }
+    }),
+
+  // Legacy initializePayment for backwards compatibility
+  initializePaymentLegacy: clientOnlyProcedure
     .input(z.object({
       jobId: z.string(),
       amount: z.number().positive(),
       description: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
+      console.log('[Payment] Initializing payment:', { jobId: input.jobId, amount: input.amount, userId: ctx.user!.userId });
+      
       // Verify job ownership
       const job = await getItem({
         PK: `JOB#${input.jobId}`,
@@ -31,6 +146,7 @@ export const paymentsRouter = router({
       });
 
       if (!job) {
+        console.error('[Payment] Job not found:', input.jobId);
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Job not found'
@@ -38,6 +154,7 @@ export const paymentsRouter = router({
       }
 
       if (job.clientId !== ctx.user!.userId) {
+        console.error('[Payment] Unauthorized access:', { jobClientId: job.clientId, userId: ctx.user!.userId });
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Not authorized'
@@ -51,24 +168,34 @@ export const paymentsRouter = router({
       });
 
       if (!user || !user.email) {
+        console.error('[Payment] User email not found:', ctx.user!.userId);
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'User email not found'
         });
       }
 
+      console.log('[Payment] User details:', { email: user.email, completedJobs: user.completedJobs });
+
       const paymentId = uuidv4();
 
       // Create Paystack payment session
       try {
+        console.log('[Payment] Creating Paystack session...');
+        
+        // Build callback URL - redirect to job page after payment
+        const callbackUrl = `${config.frontendUrl}/jobs/${input.jobId}?payment=success`;
+        
         const session = await createPaymentSession({
           userId: ctx.user!.userId,
           email: user.email,
           amount: input.amount,
           jobId: input.jobId,
           userType: 'buyer',
-          completedJobs: user.completedJobs || 0
+          completedJobs: user.completedJobs || 0,
+          callback_url: callbackUrl
         });
+        console.log('[Payment] Paystack session created:', { reference: session.reference, callbackUrl });
 
         // Store payment record
         const payment = {
@@ -98,10 +225,11 @@ export const paymentsRouter = router({
           feeBreakdown: session.feeBreakdown
         };
       } catch (error: any) {
-        console.error('Paystack payment error:', error.message);
+        console.error('[Payment] Paystack error:', error);
+        console.error('[Payment] Error details:', { message: error.message, stack: error.stack });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to initialize payment'
+          message: `Failed to initialize payment: ${error.message || 'Unknown error'}`
         });
       }
     }),
@@ -281,6 +409,101 @@ export const paymentsRouter = router({
       return payments.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
+    }),
+
+  // Alias for getJobPayments (frontend compatibility)
+  getByJobId: protectedProcedure
+    .input(z.object({ jobId: z.union([z.string(), z.number()]) }))
+    .query(async ({ input }) => {
+      const jobIdStr = input.jobId.toString();
+      const payments = await queryItems({
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: {
+          ':pk': `JOB#${jobIdStr}`
+        }
+      });
+
+      const sortedPayments = payments.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Return in format expected by frontend
+      return {
+        escrow: sortedPayments.length > 0 ? sortedPayments[0] : null
+      };
+    }),
+
+  // Create escrow (frontend compatibility - wraps initializePayment)
+  create: clientOnlyProcedure
+    .input(z.object({
+      jobId: z.union([z.string(), z.number()]),
+      workerId: z.string(),
+      totalAmount: z.number().positive()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      console.log('[Escrow] Creating escrow:', { jobId: input.jobId, totalAmount: input.totalAmount, userId: ctx.user!.userId });
+      
+      const jobIdStr = input.jobId.toString();
+      
+      // Verify job ownership
+      const job = await getItem({
+        PK: `JOB#${jobIdStr}`,
+        SK: 'METADATA'
+      });
+
+      if (!job) {
+        console.error('[Escrow] Job not found:', jobIdStr);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Job not found'
+        });
+      }
+
+      if (job.clientId !== ctx.user!.userId) {
+        console.error('[Escrow] Unauthorized access:', { jobClientId: job.clientId, userId: ctx.user!.userId });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Not authorized'
+        });
+      }
+
+      // Calculate amounts with 5% buyer fee
+      const buyerFee = Math.round(input.totalAmount * 0.05);
+      const buyerTotal = input.totalAmount + buyerFee;
+      const depositAmount = Math.round(buyerTotal * 0.3);
+      const remainingAmount = buyerTotal - depositAmount;
+
+      const escrowId = uuidv4();
+
+      // Create escrow record
+      const escrow = {
+        PK: `ESCROW#${escrowId}`,
+        SK: 'METADATA',
+        id: escrowId,
+        jobId: jobIdStr,
+        clientId: ctx.user!.userId,
+        workerId: input.workerId,
+        totalAmount: buyerTotal,
+        depositAmount,
+        remainingAmount,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        GSI1PK: `JOB#${jobIdStr}`,
+        GSI1SK: new Date().toISOString()
+      };
+
+      await putItem(escrow);
+
+      console.log('[Escrow] Created:', { escrowId, depositAmount, totalAmount: buyerTotal });
+
+      return {
+        escrow: {
+          ...escrow,
+          depositPaidAt: null,
+          releasedAt: null
+        }
+      };
     }),
 
   // Request withdrawal (worker)

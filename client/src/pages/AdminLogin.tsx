@@ -22,7 +22,8 @@ export default function AdminLogin() {
       
       toast.success(`Welcome back! Logged in as ${data.admin.name}`);
       
-      setLocation("/admin/dashboard");
+      // Force page reload to ensure token is picked up by tRPC client
+      window.location.href = "/admin/dashboard";
     },
     onError: (error) => {
       toast.error(`Login failed: ${error.message}`);
