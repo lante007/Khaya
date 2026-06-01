@@ -35,7 +35,8 @@ export default function ReviewForm({ jobId, workerId, onSuccess }: ReviewFormPro
     
     submitReview.mutate({
       jobId,
-      workerId,
+      reviewedId: workerId,
+      type: 'worker',
       rating,
       comment: comment.trim(),
     }, {

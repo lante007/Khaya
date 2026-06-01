@@ -22,14 +22,11 @@ export default function WorkerResume() {
   const workerId = params?.id || "";
 
   const { data: resume, isLoading, error } = trpc.resume.getWorkerResume.useQuery(
-    { workerId },
-    { enabled: !!workerId }
-  );
-
-  const { data: profile } = trpc.user.getProfile.useQuery(
     { userId: workerId },
     { enabled: !!workerId }
   );
+
+  const profile = resume?.profile;
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -111,22 +108,22 @@ export default function WorkerResume() {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                {profile?.profilePictureUrl ? (
+                {profile?.photoUrl ? (
                   <img
-                    src={profile.profilePictureUrl}
+                    src={profile.photoUrl}
                     alt="Profile"
                     className="w-16 h-16 rounded-full object-cover"
                   />
                 ) : (
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-2xl">
-                    {profile?.name?.[0] || "W"}
+                    {(profile as any)?.name?.[0] || "W"}
                   </div>
                 )}
                 <div>
-                  <CardTitle className="text-2xl">{profile?.name || "Worker"}</CardTitle>
+                  <CardTitle className="text-2xl">{(profile as any)?.name || "Worker"}</CardTitle>
                   <div className="flex items-center gap-2 mt-1 text-muted-foreground">
                     <Briefcase className="w-4 h-4" />
-                    {profile?.trades?.join(", ") || "General Worker"}
+                    {profile?.trade || "General Worker"}
                   </div>
                   {profile?.location && (
                     <div className="flex items-center gap-2 mt-1 text-muted-foreground">
@@ -174,7 +171,7 @@ export default function WorkerResume() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {resume.skills.map((skill) => (
+                    {resume.skills.map((skill: string) => (
                       <Badge key={skill} variant="secondary">
                         {skill}
                       </Badge>

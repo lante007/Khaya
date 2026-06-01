@@ -25,9 +25,9 @@ export function ChatWindow({
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout>();
+  const pollIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user } = trpc.auth.me.useQuery(undefined);
   const sendMessage = trpc.messages.send.useMutation();
   const { data: messagesData, refetch } = trpc.messages.list.useQuery({
     conversationId,
@@ -78,7 +78,7 @@ export function ChatWindow({
     
     try {
       await sendMessage.mutateAsync({
-        receiverId,
+        receiverId: parseInt(receiverId),
         content: messageText,
         jobId,
       });

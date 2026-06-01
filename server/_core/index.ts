@@ -4,6 +4,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerPaystackWebhook } from "../webhooks/paystack";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -45,6 +46,10 @@ async function startServer() {
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // Paystack webhook — must be registered before express.json() parses the body
+  // so the raw Buffer is available for HMAC signature verification
+  registerPaystackWebhook(app);
   // tRPC API
   app.use(
     "/api/trpc",

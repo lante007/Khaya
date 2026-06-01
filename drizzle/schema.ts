@@ -228,3 +228,98 @@ export const stories = mysqlTable("stories", {
 
 export type Story = typeof stories.$inferSelect;
 export type InsertStory = typeof stories.$inferInsert;
+
+/**
+ * Wave broadcasts — expanding geographic notification rings per job.
+ * Wave 1: 5km, Wave 2: 15km, Wave 3: 30km.
+ * Workers receive a notification when a wave reaches their location.
+ */
+export const waves = mysqlTable("waves", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  workerId: int("workerId").notNull(),
+  waveNumber: int("waveNumber").notNull(), // 1, 2, or 3
+  status: mysqlEnum("status", ["sent", "seen", "accepted", "declined", "expired"]).default("sent").notNull(),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  respondedAt: timestamp("respondedAt"),
+  expiresAt: timestamp("expiresAt").notNull(),
+});
+
+export type Wave = typeof waves.$inferSelect;
+export type InsertWave = typeof waves.$inferInsert;
+
+/**
+ * Worker skills — normalised trade + skill tags per worker.
+ * Replaces the single `profiles.trade` string for multi-skill workers.
+ */
+export const workerSkills = mysqlTable("worker_skills", {
+  id: int("id").autoincrement().primaryKey(),
+  workerId: int("workerId").notNull(),
+  skill: varchar("skill", { length: 100 }).notNull(),   // e.g. "Plumbing", "Tiling"
+  grade: mysqlEnum("grade", ["Bronze", "Silver", "Gold", "Platinum"]).default("Bronze").notNull(),
+  verifiedAt: timestamp("verifiedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkerSkill = typeof workerSkills.$inferSelect;
+export type InsertWorkerSkill = typeof workerSkills.$inferInsert;
+
+/**
+ * OTP codes — DB-backed to survive Lambda cold starts and multi-instance deployments.
+ * Codes are single-use: marked used=true on first successful verification.
+ * Rate limiting is enforced by counting recent rows per phone number.
+ */
+export const otpCodes = mysqlTable("otp_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  code: varchar("code", { length: 6 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OtpCode = typeof otpCodes.$inferSelect;
+export type InsertOtpCode = typeof otpCodes.$inferInsert;
+
+/**
+ * Escrow records — funds held between buyer payment and worker release.
+ * Status flow: pending → funded → released | refunded | disputed
+ */
+export const escrows = mysqlTable("escrows", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  buyerId: int("buyerId").notNull(),
+  workerId: int("workerId").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  platformFee: decimal("platformFee", { precision: 10, scale: 2 }).notNull().default("0"),
+  paystackFee: decimal("paystackFee", { precision: 10, scale: 2 }).notNull().default("0"),
+  buyerTotal: decimal("buyerTotal", { precision: 10, scale: 2 }).notNull(),
+  workerPayout: decimal("workerPayout", { precision: 10, scale: 2 }).notNull(),
+  paystackReference: varchar("paystackReference", { length: 200 }).notNull(),
+  status: mysqlEnum("status", ["pending", "deposit_paid", "held", "funded", "released", "refunded", "disputed"]).default("pending").notNull(),
+  releasedAt: timestamp("releasedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Escrow = typeof escrows.$inferSelect;
+export type InsertEscrow = typeof escrows.$inferInsert;
+
+/**
+ * Payment transaction log — one row per Paystack event affecting an escrow.
+ */
+export const paymentTransactions = mysqlTable("payment_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  escrowId: int("escrowId").notNull(),
+  paystackReference: varchar("paystackReference", { length: 200 }).notNull(),
+  paystackTransactionId: varchar("paystackTransactionId", { length: 200 }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("ZAR").notNull(),
+  status: mysqlEnum("status", ["pending", "success", "failed", "refunded"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export type InsertPaymentTransaction = typeof paymentTransactions.$inferInsert;

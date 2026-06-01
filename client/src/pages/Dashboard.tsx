@@ -17,6 +17,7 @@ export default function Dashboard() {
   const { data: myBids, isLoading: bidsLoading, error: bidsError } = trpc.bid.getMyBids.useQuery();
   const { data: myListings, isLoading: listingsLoading, error: listingsError } = trpc.listing.getMyListings.useQuery();
   const { data: notifications, isLoading: notificationsLoading, error: notificationsError } = trpc.notification.getMyNotifications.useQuery();
+  const { data: profile } = trpc.profile.get.useQuery({}, { enabled: !!user });
   
   const formatPrice = (amount: number) => {
     if (!amount) return 'R0.00';
@@ -27,14 +28,14 @@ export default function Dashboard() {
 
   // Calculate profile completion
   const completion = calculateProfileCompletion({
-    name: user?.name,
-    email: user?.email,
-    phone: user?.phone,
-    profilePictureUrl: user?.profilePictureUrl,
-    bio: user?.bio,
-    location: user?.location,
-    skills: user?.skills,
-    verified: user?.verified
+    name: user?.name ?? undefined,
+    email: user?.email ?? undefined,
+    phone: user?.phone ?? undefined,
+    profilePictureUrl: profile?.photoUrl ?? undefined,
+    bio: profile?.bio ?? undefined,
+    location: profile?.location ?? undefined,
+    skills: undefined,
+    verified: profile?.verified
   });
   
   return (
@@ -44,8 +45,8 @@ export default function Dashboard() {
         {/* Header with Avatar */}
         <div className="mb-8 flex items-start gap-6">
           <Avatar 
-            src={user?.profilePictureUrl} 
-            name={user?.name} 
+            src={profile?.photoUrl} 
+            name={user?.name ?? undefined} 
             size="xl"
             showBorder
           />
@@ -59,19 +60,19 @@ export default function Dashboard() {
         {/* Profile Nudges */}
         {completion.percentage < 100 && (
           <div className="mb-6 space-y-4">
-            {!user?.profilePictureUrl && (
+            {!profile?.photoUrl && (
               <ProfileNudge
                 type="profile-picture"
                 onAction={() => setLocation('/profile')}
               />
             )}
-            {!user?.bio && (
+            {!profile?.bio && (
               <ProfileNudge
                 type="bio"
                 onAction={() => setLocation('/profile')}
               />
             )}
-            {!user?.location && (
+            {!profile?.location && (
               <ProfileNudge
                 type="location"
                 onAction={() => setLocation('/profile')}

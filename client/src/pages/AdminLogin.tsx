@@ -16,13 +16,7 @@ export default function AdminLogin() {
 
   const loginMutation = trpc.admin.login.useMutation({
     onSuccess: (data) => {
-      // Store admin token
-      localStorage.setItem("adminToken", data.token);
-      localStorage.setItem("adminUser", JSON.stringify(data.admin));
-      
-      toast.success(`Welcome back! Logged in as ${data.admin.name}`);
-      
-      // Force page reload to ensure token is picked up by tRPC client
+      toast.success(`Welcome back, ${data.admin.name}!`);
       window.location.href = "/admin/dashboard";
     },
     onError: (error) => {

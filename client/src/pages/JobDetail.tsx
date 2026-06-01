@@ -16,7 +16,7 @@ import { toast } from "sonner";
 export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
   const jobId = params?.id || "";
-  const { data: job, isLoading } = trpc.job.getById.useQuery({ jobId });
+  const { data: job, isLoading } = trpc.job.getByJobId.useQuery({ jobId });
   const { data: bids, refetch: refetchBids } = trpc.bid.getJobBids.useQuery({ jobId });
   const { data: user } = trpc.auth.me.useQuery();
   const createBid = trpc.bid.submit.useMutation();
@@ -33,7 +33,7 @@ export default function JobDetail() {
   
   const acceptBid = trpc.bid.accept.useMutation();
   // const { data: reviews, refetch: refetchReviews } = trpc.review.getByJob.useQuery({ jobId }); // TODO: Add review router
-  const reviews = [];
+  const reviews: any[] = [];
   const refetchReviews = () => {};
   
   const formatPrice = (cents: number) => `R${(cents / 100).toFixed(2)}`;
@@ -103,8 +103,8 @@ I have experience in this type of work and will ensure quality results. Please l
     createBid.mutate({
       jobId,
       amount: amount,
-      proposedDuration: `${timeline} days`,
-      coverLetter: proposal.trim(),
+      timeline: parseFloat(timeline) || 1,
+      proposal: proposal.trim(),
     }, {
       onSuccess: () => {
         toast.success("Bid submitted successfully!");
@@ -158,7 +158,7 @@ I have experience in this type of work and will ensure quality results. Please l
               {/* Place Bid Button */}
               {user && job.status === 'open' && (
                 <div className="pt-4">
-                  {user.userType === 'worker' ? (
+                  {user.role === 'worker' ? (
                     !showBidForm ? (
                       <Button onClick={() => setShowBidForm(true)} className="w-full">
                         Place a Bid
@@ -275,23 +275,23 @@ I have experience in this type of work and will ensure quality results. Please l
             {bids && bids.length > 0 ? (
               <div className="space-y-3">
                 {bids.map(item => (
-                  <div key={item.bidId} className="p-4 border rounded-lg">
+                  <div key={item.bid.id} className="p-4 border rounded-lg">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-semibold">{item.worker?.name || "Worker"}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {item.proposedDuration} · {formatPrice(item.amount)}
+                          {item.bid.timeline} days · {formatPrice(item.bid.amount)}
                         </p>
                       </div>
                       <div className="flex gap-2 items-center">
                         <span className="text-sm capitalize px-2 py-1 bg-muted rounded">
-                          {item.status}
+                          {item.bid.status}
                         </span>
-                        {user?.userId === job.clientId && item.status === 'pending' && (
+                        {user?.id === job.buyerId && item.bid.status === 'pending' && (
                           <Button
                             size="sm"
                             onClick={() => {
-                              setSelectedBidId(item.bidId);
+                              setSelectedBidId(item.bid.id);
                               setShowPayment(true);
                             }}
                           >
@@ -301,7 +301,7 @@ I have experience in this type of work and will ensure quality results. Please l
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
-                      {item.coverLetter}
+                      {item.bid.proposal}
                     </p>
                   </div>
                 ))}
@@ -316,9 +316,9 @@ I have experience in this type of work and will ensure quality results. Please l
         {showPayment && selectedBidId && (
           <div className="mb-6">
             <PaymentFlow
-              jobId={jobId}
-              workerId={bids?.find(b => b.bidId === selectedBidId)?.workerId?.toString() || ""}
-              totalAmount={bids?.find(b => b.bidId === selectedBidId)?.amount || 0}
+              jobId={parseInt(jobId) || 0}
+              workerId={bids?.find(b => b.bid.id === selectedBidId)?.bid.workerId ?? 0}
+              totalAmount={bids?.find(b => b.bid.id === selectedBidId)?.bid.amount || 0}
               onPaymentComplete={() => {
                 setShowPayment(false);
                 toast.success("Payment initiated successfully!");
@@ -329,7 +329,7 @@ I have experience in this type of work and will ensure quality results. Please l
         )}
 
         {/* Review Section */}
-        {job.status === 'completed' && user?.userId === job.clientId && (
+        {job.status === 'completed' && user?.id === job.buyerId && (
           <div className="mb-6">
             {!showReviewForm ? (
               <Card>
@@ -347,8 +347,8 @@ I have experience in this type of work and will ensure quality results. Please l
               </Card>
             ) : (
               <ReviewForm
-                jobId={jobId}
-                workerId={job.assignedWorkerId || ""}
+                jobId={parseInt(jobId) || 0}
+                workerId={job.selectedBidId || 0}
                 onSuccess={() => {
                   setShowReviewForm(false);
                   refetchReviews();

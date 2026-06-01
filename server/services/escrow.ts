@@ -114,7 +114,7 @@ export function createEscrowPayment(data: {
     jobId: data.jobId,
     buyerId: data.buyerId,
     workerId: data.workerId,
-    totalAmount: amounts.totalAmount,
+    totalAmount: amounts.buyerTotal,
     depositAmount: amounts.depositAmount,
     remainingAmount: amounts.remainingAmount,
     status: 'pending',

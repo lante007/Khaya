@@ -71,8 +71,8 @@ export function ProfilePictureUpload({
     try {
       // Step 1: Get presigned upload URL from backend
       const { uploadUrl, fileUrl } = await getUploadUrlMutation.mutateAsync({
-        fileType: 'avatar',
-        contentType: file.type
+        fileName: `avatar_${Date.now()}.jpg`,
+        fileType: file.type,
       });
 
       // Step 2: Upload to S3
@@ -90,7 +90,7 @@ export function ProfilePictureUpload({
 
       // Step 3: Update user profile with new image URL
       await updateProfileMutation.mutateAsync({
-        profilePictureUrl: fileUrl
+        photoUrl: fileUrl,
       });
 
       // Step 4: Notify parent component

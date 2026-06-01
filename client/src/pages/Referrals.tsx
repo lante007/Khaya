@@ -37,7 +37,7 @@ export default function Referrals() {
         <p className="text-lg text-muted-foreground mb-8">Earn R50 for every friend you refer!</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card><CardHeader><Gift className="w-8 h-8 text-primary mb-2" /><CardTitle>Your Balance</CardTitle><CardDescription>Available credits</CardDescription></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{formatCents(balance || 0)}</p></CardContent></Card>
+          <Card><CardHeader><Gift className="w-8 h-8 text-primary mb-2" /><CardTitle>Your Balance</CardTitle><CardDescription>Available credits</CardDescription></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{formatCents(typeof balance === 'object' ? (balance as any).balance : (balance ?? 0))}</p></CardContent></Card>
           <Card><CardHeader><Users className="w-8 h-8 text-accent mb-2" /><CardTitle>Total Referrals</CardTitle><CardDescription>Friends joined</CardDescription></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{referrals?.filter((r: any) => r.status === "completed").length || 0}</p></CardContent></Card>
         </div>
         

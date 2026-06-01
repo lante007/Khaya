@@ -56,10 +56,7 @@ export default function AuthNew() {
         setIsNewUser(true);
         setStep('profile');
       } else {
-        // Existing user - save token and redirect
-        console.log('Existing user login, saving token');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Existing user - redirect to dashboard
         toast.success('Welcome back!');
         setLocation('/dashboard');
       }
@@ -70,15 +67,9 @@ export default function AuthNew() {
     },
   });
 
-  // Sign in with password
+  // Sign in with password (routes through OTP — password auth not supported)
   const signInMutation = trpc.auth.signIn.useMutation({
-    onSuccess: (data) => {
-      console.log('Sign in success:', data);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        userId: data.userId,
-        userType: data.userType
-      }));
+    onSuccess: () => {
       toast.success('Welcome back!');
       setLocation('/dashboard');
     },
@@ -88,14 +79,10 @@ export default function AuthNew() {
     },
   });
 
-  // Sign up mutation
+  // Sign up mutation (routes through OTP)
   const signUpMutation = trpc.auth.signUp.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+    onSuccess: () => {
       toast.success('Account created successfully!');
-      
-      // Redirect based on user type
       if (userType === 'worker') {
         setLocation('/provider/onboard');
       } else {
@@ -213,7 +200,7 @@ export default function AuthNew() {
     setPhone(formatted);
   };
 
-  const isLoading = requestOTPMutation.isLoading || verifyOTPMutation.isLoading || signUpMutation.isLoading || signInMutation.isLoading;
+  const isLoading = requestOTPMutation.isPending || verifyOTPMutation.isPending || signUpMutation.isPending || signInMutation.isPending;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 p-4">

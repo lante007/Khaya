@@ -39,6 +39,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   try {
     const values: InsertUser = {
       openId: user.openId,
+      phone: user.phone ?? '',
     };
     const updateSet: Record<string, unknown> = {};
 
@@ -49,7 +50,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       const value = user[field];
       if (value === undefined) return;
       const normalized = value ?? null;
-      values[field] = normalized;
+      (values as Record<string, unknown>)[field] = normalized;
       updateSet[field] = normalized;
     };
 
@@ -538,4 +539,120 @@ export async function likeStory(id: number) {
   const db = await getDb();
   if (!db) return null;
   return await db.update(stories).set({ likes: sql`${stories.likes} + 1` }).where(eq(stories.id, id));
+}
+
+// ===== Messaging (conversation-based) =====
+
+export async function getOrCreateConversation(userId1: number, userId2: number, jobId?: number) {
+  // Conversations are virtual — represented by the pair (userId1, userId2).
+  // Return a stable ID so the frontend can reference it.
+  const id = [Math.min(userId1, userId2), Math.max(userId1, userId2), jobId ?? 0].join('_');
+  return { id, userId1, userId2, jobId: jobId ?? null };
+}
+
+export async function getUserConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all messages involving this user, group by the other party
+  const sent = await db.select().from(messages).where(eq(messages.senderId, userId)).orderBy(desc(messages.createdAt));
+  const received = await db.select().from(messages).where(eq(messages.receiverId, userId)).orderBy(desc(messages.createdAt));
+
+  const all = [...sent, ...received].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  // Deduplicate by conversation partner
+  const seen = new Set<string>();
+  const conversations: Array<{ id: string; otherUserId: number; lastMessage: typeof all[0]; unreadCount: number }> = [];
+  for (const msg of all) {
+    const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+    const key = [Math.min(userId, otherId), Math.max(userId, otherId), msg.jobId ?? 0].join('_');
+    if (!seen.has(key)) {
+      seen.add(key);
+      const unread = all.filter(m => m.receiverId === userId && !m.read && (m.senderId === otherId)).length;
+      conversations.push({ id: key, otherUserId: otherId, lastMessage: msg, unreadCount: unread });
+    }
+  }
+  return conversations;
+}
+
+export async function getMessages(conversationId: string, limit: number = 50, since?: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const [u1, u2] = conversationId.split('_').map(Number);
+  let query = db.select().from(messages).where(
+    or(
+      and(eq(messages.senderId, u1), eq(messages.receiverId, u2)),
+      and(eq(messages.senderId, u2), eq(messages.receiverId, u1))
+    )
+  ).orderBy(asc(messages.createdAt)).limit(limit);
+
+  return await query;
+}
+
+export async function markMessagesAsRead(conversationId: string, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  const [u1, u2] = conversationId.split('_').map(Number);
+  const otherId = u1 === userId ? u2 : u1;
+  await db.update(messages)
+    .set({ read: true })
+    .where(and(eq(messages.senderId, otherId), eq(messages.receiverId, userId), eq(messages.read, false)));
+}
+
+// ===== Escrow =====
+// Escrow operations are handled directly via Drizzle in server/routers.ts (escrow router)
+// and server/webhooks/paystack.ts. See drizzle/schema.ts for the escrows table definition.
+
+// ===== Milestones (extended) =====
+
+export async function updateMilestoneStatus(
+  milestoneId: number,
+  status: 'pending' | 'submitted' | 'approved' | 'rejected',
+  updates: { proofUrl?: string } = {}
+) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(milestones).set({ status, ...updates }).where(eq(milestones.id, milestoneId));
+  return await db.select().from(milestones).where(eq(milestones.id, milestoneId)).limit(1).then(r => r[0]);
+}
+
+// ===== Review helpers =====
+
+export async function getReviewsForWorker(workerId: number) {
+  return getReviewsForUser(workerId);
+}
+
+export async function getReviewForJob(jobId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(reviews)
+    .where(and(eq(reviews.jobId, jobId), eq(reviews.reviewerId, userId)))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+// ===== Job helpers =====
+
+export async function getJobsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(jobs)
+    .where(or(eq(jobs.buyerId, userId), eq(jobs.selectedBidId, userId)))
+    .orderBy(desc(jobs.createdAt));
+}
+
+export async function getBidById(bidId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(bids).where(eq(bids.id, bidId)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function getUserByPhone(phone: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
+  return result[0] ?? null;
 }

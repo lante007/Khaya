@@ -48,31 +48,30 @@ export default function Profile() {
   useEffect(() => {
     if (profile) {
       setBio(profile.bio || "");
-      setTrades(profile.trades || profile.skills || []);
+      setTrades(profile.trade ? [profile.trade] : []);
       setLocationState(profile.location || "");
-      setLanguages(profile.languages || "");
-      setProfilePictureUrl(profile.profilePictureUrl || null);
+      setLanguages("");
+      setProfilePictureUrl(profile.photoUrl || null);
     }
   }, [profile]);
 
   // Calculate profile completion
   const completion = calculateProfileCompletion({
-    name: user?.name,
-    email: user?.email,
+    name: user?.name ?? undefined,
+    email: user?.email ?? undefined,
     phone: user?.phone,
-    profilePictureUrl: profilePictureUrl,
+    profilePictureUrl: profilePictureUrl ?? undefined,
     bio: bio,
     location: locationState,
     skills: trades,
-    verified: user?.verified
+    verified: profile?.verified
   });
   
   const handleSave = () => {
     updateProfile.mutate({
-      bio, 
+      bio,
       location: locationState,
-      languages: languages || undefined,
-      trades: trades.length > 0 ? trades : undefined,
+      trade: trades.length > 0 ? trades[0] : undefined,
     }, {
       onSuccess: () => {
         toast.success("Profile updated!");
@@ -96,10 +95,10 @@ export default function Profile() {
       <div className="container py-8 max-w-3xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-bold">My Profile</h1>
-          {user?.userId && (
+          {user?.id && (
             <Button
               variant="outline"
-              onClick={() => setLocation(`/workers/${user.userId}/resume`)}
+              onClick={() => setLocation(`/workers/${user.id}/resume`)}
             >
               <FileText className="h-4 w-4 mr-2" />
               View My Résumé
@@ -132,7 +131,7 @@ export default function Profile() {
           <CardContent className="flex justify-center">
             <ProfilePictureUpload
               currentImageUrl={profilePictureUrl}
-              userName={user?.name}
+              userName={user?.name ?? undefined}
               onUploadComplete={handleProfilePictureUpload}
               size="lg"
             />

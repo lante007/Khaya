@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export default function Showcase() {
   const { userId } = useParams();
-  const { data: profile, isLoading } = trpc.profile.get.useQuery({ userId: parseInt(userId!) });
+  const { data: profile, isLoading } = trpc.profile.get.useQuery({ userId: userId ? parseInt(userId) : undefined });
   // Reviews will be added when backend endpoint is ready
   const reviews: any[] = [];
 
@@ -40,7 +40,7 @@ export default function Showcase() {
                     <MapPin className="w-4 h-4" />
                     {profile.location}
                   </div>
-                  <TrustBadge verified={profile.verified} trustScore={profile.trustScore || 0} completedJobs={profile.completedJobs} />
+                  <TrustBadge trustScore={profile.trustScore || 0} />
                 </div>
               </div>
               <Button onClick={handleShare} variant="outline">

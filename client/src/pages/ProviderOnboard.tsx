@@ -52,7 +52,13 @@ export default function ProviderOnboard() {
   };
 
   const handleSubmit = () => {
-    createProfile.mutate(formData, {
+    createProfile.mutate({
+      bio: formData.bio,
+      location: formData.location,
+      trade: formData.trades[0] ?? undefined,
+      yearsExperience: formData.yearsExperience,
+      photoUrl: formData.photoUrl || undefined,
+    }, {
       onSuccess: () => {
         toast.success("Profile created! Welcome to Khaya!");
         setLocation("/dashboard");
@@ -171,7 +177,7 @@ export default function ProviderOnboard() {
 
             {step === 4 && (
               <div className="space-y-4">
-                <div><strong>Trade:</strong> {formData.trade}</div>
+                <div><strong>Trade:</strong> {formData.trades[0]}</div>
                 <div><strong>Location:</strong> {formData.location}</div>
                 <div><strong>Experience:</strong> {formData.yearsExperience} years</div>
                 <div><strong>Bio:</strong> {formData.bio}</div>

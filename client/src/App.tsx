@@ -33,6 +33,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminJobs from "./pages/AdminJobs";
 import AdminPayments from "./pages/AdminPayments";
 import Messages from "./pages/Messages";
+import PriceGuide from "./pages/PriceGuide";
 
 function Router() {
   return (
@@ -58,6 +59,7 @@ function Router() {
       <Route path="/stories" component={Stories} />
       <Route path="/provider/onboard" component={ProviderOnboard} />
       <Route path="/showcase/:userId" component={Showcase} />
+      <Route path="/price-guide" component={PriceGuide} />
       <Route path="/about" component={AboutUs} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/trust-safety" component={TrustSafety} />

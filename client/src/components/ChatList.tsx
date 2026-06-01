@@ -14,10 +14,6 @@ export function ChatList({ onSelectConversation }: ChatListProps) {
   
   const conversations = data?.conversations || [];
   
-  const getOtherUserId = (participants: string[]) => {
-    return participants.find(id => id !== user?.id) || '';
-  };
-  
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -74,17 +70,20 @@ export function ChatList({ onSelectConversation }: ChatListProps) {
       <CardContent className="p-0">
         <div className="divide-y">
           {conversations.map((conv) => {
-            const otherUserId = getOtherUserId(conv.participants);
-            const unreadCount = conv.unreadCount?.[user?.id || ''] || 0;
-            
+            const otherUserId = conv.otherUserId.toString();
+            const unreadCount = conv.unreadCount || 0;
+            const lastMsgTime = conv.lastMessage?.createdAt
+              ? formatTime(new Date(conv.lastMessage.createdAt).toISOString())
+              : '';
+
             return (
               <button
                 key={conv.id}
                 onClick={() => onSelectConversation(
                   conv.id,
                   otherUserId,
-                  otherUserId, // TODO: Get actual name from user profile
-                  conv.jobId
+                  `User ${otherUserId}`,
+                  conv.lastMessage?.jobId ?? undefined
                 )}
                 className={cn(
                   "w-full p-4 text-left hover:bg-muted/50 transition-colors",
@@ -97,40 +96,37 @@ export function ChatList({ onSelectConversation }: ChatListProps) {
                       {otherUserId.substring(0, 2).toUpperCase()}
                     </span>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <p className={cn(
-                        "font-medium truncate",
-                        unreadCount > 0 && "font-semibold"
-                      )}>
-                        {otherUserId}
+                      <p className={cn("font-medium truncate", unreadCount > 0 && "font-semibold")}>
+                        User {otherUserId}
                       </p>
                       <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                        {formatTime(conv.lastMessageAt || conv.createdAt)}
+                        {lastMsgTime}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <p className={cn(
                         "text-sm text-muted-foreground truncate",
                         unreadCount > 0 && "font-medium text-foreground"
                       )}>
-                        {conv.lastMessage || 'No messages yet'}
+                        {conv.lastMessage?.content || 'No messages yet'}
                       </p>
                       {unreadCount > 0 && (
-                        <Badge 
-                          variant="default" 
+                        <Badge
+                          variant="default"
                           className="ml-2 flex-shrink-0 h-5 w-5 p-0 flex items-center justify-center rounded-full"
                         >
                           {unreadCount}
                         </Badge>
                       )}
                     </div>
-                    
-                    {conv.jobId && (
+
+                    {conv.lastMessage?.jobId && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Job #{conv.jobId}
+                        Job #{conv.lastMessage.jobId}
                       </p>
                     )}
                   </div>

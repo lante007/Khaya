@@ -102,7 +102,7 @@ export default function StrengthMeter({
 
           {/* Progress Bar */}
           <div className="space-y-2">
-            <Progress value={strength} className="h-3" indicatorClassName={progressColor} />
+            <Progress value={strength} className={cn("h-3", `[&>div]:${progressColor}`)} />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>0</span>
               <span>Bronze (40)</span>

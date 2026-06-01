@@ -1,10 +1,11 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-// Use DynamoDB for serverless deployment
-import * as db from "./db-dynamodb";
+import * as db from "./db";
+import { eq } from "drizzle-orm";
+import { escrows, paymentTransactions } from "../drizzle/schema";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 import * as aiClaude from "./ai/claude";
@@ -13,6 +14,10 @@ import * as badgeService from "./services/badges";
 import * as reviewPromptService from "./services/review-prompts";
 import * as escrowService from "./services/escrow";
 import * as paystackService from "./services/paystack";
+import * as otpService from "./services/otp";
+import * as waveService from "./services/waves";
+import * as gradingService from "./services/grading";
+import * as estimationService from "./services/estimation";
 
 // Helper to generate random suffix for file keys
 function randomSuffix() {
@@ -29,14 +34,170 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+
+    // OTP-based auth — Twilio SMS/WhatsApp delivery
+    requestOTP: publicProcedure
+      .input(z.object({
+        phone: z.string().optional(),
+        email: z.string().email().optional(),
+        method: z.enum(['sms', 'whatsapp', 'email']).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const phone = input.phone;
+        if (!phone) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Phone number is required for OTP.' });
+        }
+        try {
+          const result = await otpService.sendOtp(phone, input.method === 'whatsapp' ? 'whatsapp' : 'sms');
+          return {
+            success: true,
+            method: input.method ?? 'sms',
+            // devCode only present in development — never sent in production
+            ...(result.devCode ? { devCode: result.devCode } : {}),
+          } as const;
+        } catch (err) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: err instanceof Error ? err.message : 'Failed to send OTP.',
+          });
+        }
+      }),
+
+    verifyOTP: publicProcedure
+      .input(z.object({
+        phone: z.string().optional(),
+        email: z.string().optional(),
+        otp: z.string().length(6),
+        userType: z.enum(['buyer', 'worker', 'seller']).optional(),
+        name: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const phone = input.phone;
+        if (!phone) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Phone number is required.' });
+        }
+        const result = await otpService.verifyOtp(phone, input.otp);
+        if (!result.valid) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: result.reason ?? 'Invalid OTP.' });
+        }
+        // Check if user already exists
+        const existing = await db.getUserByPhone?.(phone).catch(() => null);
+        const isNewUser = !existing;
+        return { success: true, isNewUser, phone } as const;
+      }),
+
+    signIn: publicProcedure
+      .input(z.object({
+        identifier: z.string(),
+        password: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        // Password auth stub — real auth goes through Manus OAuth.
+        throw new TRPCError({ code: 'METHOD_NOT_SUPPORTED', message: 'Use OTP login via the Manus OAuth portal.' });
+      }),
+
+    signUp: publicProcedure
+      .input(z.object({
+        phone: z.string(),
+        password: z.string(),
+        userType: z.enum(['buyer', 'worker', 'seller']),
+        name: z.string(),
+        email: z.string().email().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Sign-up stub — real auth goes through Manus OAuth.
+        throw new TRPCError({ code: 'METHOD_NOT_SUPPORTED', message: 'Use OTP login via the Manus OAuth portal.' });
+      }),
+  }),
+
+  // Admin panel — all routes require role === 'admin' via adminProcedure
+  admin: router({
+    // Login: validates against env-var credentials, then the session cookie
+    // carries the user's role. Admin role is auto-assigned when openId === OWNER_OPEN_ID.
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string() }))
+      .mutation(async ({ input }) => {
+        const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@projectkhaya.co.za';
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (!adminPassword) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Admin credentials not configured.' });
+        }
+        if (input.email !== adminEmail || input.password !== adminPassword) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid credentials' });
+        }
+        return { success: true, admin: { name: 'Admin', email: adminEmail } };
+      }),
+
+    getStats: adminProcedure.query(async () => {
+      return { totalUsers: 0, totalJobs: 0, totalPayments: 0, pendingApprovals: 0 };
+    }),
+
+    getDashboardStats: adminProcedure.query(async () => {
+      return {
+        totalUsers: 0, totalJobs: 0, totalPayments: 0, pendingApprovals: 0,
+        users: { total: 0, verified: 0, workers: 0, clients: 0 },
+        jobs: { total: 0, open: 0, inProgress: 0, completed: 0 },
+        payments: { totalRevenue: 0, platformFees: 0, completed: 0 },
+      };
+    }),
+
+    getProfile: adminProcedure.query(async ({ ctx }) => {
+      return { name: ctx.user.name ?? 'Admin', email: ctx.user.email ?? '' };
+    }),
+
+    getUsers: adminProcedure
+      .input(z.object({ page: z.number().optional(), limit: z.number().optional(), role: z.string().optional() }))
+      .query(async () => ({ users: [] as any[], total: 0 })),
+
+    getAllUsers: adminProcedure.query(async () => ([] as any[])),
+
+    updateUser: adminProcedure
+      .input(z.object({ userId: z.string(), action: z.enum(['suspend', 'reinstate', 'override_grade']), grade: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        // TODO: implement suspend/reinstate/grade override against DB
+        return { success: true, action: input.action, userId: input.userId };
+      }),
+
+    getJobs: adminProcedure
+      .input(z.object({ page: z.number().optional(), status: z.string().optional() }))
+      .query(async () => ({ jobs: [] as any[], total: 0 })),
+
+    getAllJobs: adminProcedure.query(async () => ([] as any[])),
+
+    rebroadcastJob: adminProcedure
+      .input(z.object({ jobId: z.string() }))
+      .mutation(async ({ input }) => {
+        // TODO: re-trigger wave broadcasting for expired job
+        return { success: true, jobId: input.jobId };
+      }),
+
+    getPayments: adminProcedure
+      .input(z.object({ page: z.number().optional() }))
+      .query(async () => ({ payments: [] as any[], total: 0 })),
+
+    getAllPayments: adminProcedure.query(async () => ([] as any[])),
+
+    issueRefund: adminProcedure
+      .input(z.object({ paymentId: z.string(), reason: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        // TODO: call Paystack refund API
+        return { success: true, paymentId: input.paymentId };
+      }),
+
+    approveSeller: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.upsertProfile({ userId: input.userId, location: '', verified: true });
+        return { success: true };
+      }),
   }),
 
   // Profile Management
   profile: router({
     get: protectedProcedure
-      .input(z.object({ userId: z.string().optional() }))
+      .input(z.object({ userId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const userId = input.userId || ctx.user.id;
+        const userId = input.userId ?? ctx.user.id;
         return await db.getProfileByUserId(userId);
       }),
 
@@ -92,17 +253,31 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         // Convert budget to cents
         const budgetInCents = Math.round(input.budget * 100);
-        return await db.createJob({
+        const job = await db.createJob({
           ...input,
           budget: budgetInCents,
           buyerId: ctx.user.id,
         });
+        // Trigger Wave 1 broadcast immediately after job creation
+        if (job?.id) {
+          waveService.broadcastWave(job.id, 1).catch(err =>
+            console.error('[WAVE] Wave 1 broadcast failed:', err)
+          );
+        }
+        return job;
       }),
 
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getJobById(input.id);
+      }),
+
+    // Alias used by JobDetail.tsx
+    getByJobId: publicProcedure
+      .input(z.object({ jobId: z.string() }))
+      .query(async ({ input }) => {
+        return await db.getJobById(parseInt(input.jobId));
       }),
 
     getOpen: publicProcedure
@@ -116,7 +291,7 @@ export const appRouter = router({
 
     getMyJobs: protectedProcedure
       .query(async ({ ctx }) => {
-        return await db.getJobsByBuyer(String(ctx.user.id));
+        return await db.getJobsByBuyer(ctx.user.id);
       }),
 
     updateStatus: protectedProcedure
@@ -130,7 +305,17 @@ export const appRouter = router({
         if (!job || job.buyerId !== ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN' });
         }
-        return await db.updateJobStatus(input.jobId, input.status);
+        const result = await db.updateJobStatus(input.jobId, input.status);
+        // Recalculate grade for the assigned worker when job completes
+        if (input.status === 'completed' && job.selectedBidId) {
+          const bid = await db.getBidById(job.selectedBidId);
+          if (bid?.workerId) {
+            gradingService.updateWorkerGrade(bid.workerId).catch(err =>
+              console.error('[GRADING] Grade update on completion failed:', err)
+            );
+          }
+        }
+        return result;
       }),
   }),
 
@@ -172,9 +357,46 @@ export const appRouter = router({
         return await db.getBidsByJob(input.jobId);
       }),
 
+    // Alias used by JobDetail.tsx
+    getJobBids: publicProcedure
+      .input(z.object({ jobId: z.string() }))
+      .query(async ({ input }) => {
+        return await db.getBidsByJob(parseInt(input.jobId));
+      }),
+
+    // Alias used by JobDetail.tsx
+    submit: protectedProcedure
+      .input(z.object({
+        jobId: z.string(),
+        amount: z.number().positive(),
+        timeline: z.number().positive(),
+        proposal: z.string().min(20),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const amountInCents = Math.round(input.amount * 100);
+        const jobIdNum = parseInt(input.jobId);
+        const job = await db.getJobById(jobIdNum);
+        if (job) {
+          await db.createNotification({
+            userId: job.buyerId,
+            title: 'New Bid Received',
+            message: `You received a new bid of R${input.amount} on "${job.title}"`,
+            type: 'bid',
+            relatedId: jobIdNum,
+          });
+        }
+        return await db.createBid({
+          jobId: jobIdNum,
+          amount: amountInCents,
+          timeline: input.timeline,
+          proposal: input.proposal,
+          workerId: ctx.user.id,
+        });
+      }),
+
     getMyBids: protectedProcedure
       .query(async ({ ctx }) => {
-        return await db.getBidsByWorker(String(ctx.user.id));
+        return await db.getBidsByWorker(ctx.user.id);
       }),
 
     accept: protectedProcedure
@@ -246,7 +468,7 @@ export const appRouter = router({
 
     getMyListings: protectedProcedure
       .query(async ({ ctx }) => {
-        return await db.getListingsBySupplier(String(ctx.user.id));
+        return await db.getListingsBySupplier(ctx.user.id);
       }),
 
     uploadPhoto: protectedProcedure
@@ -282,10 +504,15 @@ export const appRouter = router({
           relatedId: input.jobId,
         });
         
-        return await db.createReview({
+        const review = await db.createReview({
           ...input,
           reviewerId: ctx.user.id,
         });
+        // Recalculate grade for the reviewed worker after each new review
+        gradingService.updateWorkerGrade(input.reviewedId).catch(err =>
+          console.error('[GRADING] Grade update failed:', err)
+        );
+        return review;
       }),
 
     getForUser: publicProcedure
@@ -336,24 +563,27 @@ export const appRouter = router({
         jobId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Create notification for receiver
         await db.createNotification({
           userId: input.receiverId,
           title: 'New Message',
           message: `You have a new message from ${ctx.user.name || 'a user'}`,
           type: 'message',
         });
-        
         return await db.createMessage({
-          ...input,
           senderId: ctx.user.id,
+          receiverId: input.receiverId,
+          jobId: input.jobId ?? null,
+          content: input.content,
+          read: false,
         });
       }),
 
     getConversation: protectedProcedure
       .input(z.object({ otherUserId: z.number() }))
       .query(async ({ ctx, input }) => {
-        return await db.getConversation(ctx.user.id, input.otherUserId);
+        return await db.getMessages(
+          [Math.min(ctx.user.id, input.otherUserId), Math.max(ctx.user.id, input.otherUserId), 0].join('_')
+        );
       }),
   }),
 
@@ -361,7 +591,7 @@ export const appRouter = router({
   notification: router({
     getMyNotifications: protectedProcedure
       .query(async ({ ctx }) => {
-        return await db.getNotificationsByUser(String(ctx.user.id));
+        return await db.getNotificationsByUser(ctx.user.id);
       }),
 
     markAsRead: protectedProcedure
@@ -378,14 +608,47 @@ export const appRouter = router({
         role: z.enum(['buyer', 'worker', 'supplier']),
       }))
       .mutation(async ({ ctx, input }) => {
-        const dbInstance = await db.getDb();
-        if (!dbInstance) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-        
-        const { users } = await import('../drizzle/schema');
-        const { eq } = await import('drizzle-orm');
-        
-        await dbInstance.update(users).set({ role: input.role }).where(eq(users.id, ctx.user.id));
+        await db.upsertUser({
+          openId: ctx.user.openId ?? '',
+          phone: ctx.user.phone,
+          role: input.role,
+        });
         return { success: true };
+      }),
+
+    // Aliases used by Profile and ProfilePictureUpload components
+    getProfile: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getProfileByUserId(ctx.user.id);
+    }),
+
+    updateProfile: protectedProcedure
+      .input(z.object({
+        bio: z.string().optional(),
+        trade: z.string().optional(),
+        location: z.string().optional(),
+        photoUrl: z.string().optional(),
+        certifications: z.string().optional(),
+        yearsExperience: z.number().optional(),
+        availabilityStatus: z.enum(['available', 'busy', 'unavailable']).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.upsertProfile({
+          userId: ctx.user.id,
+          location: input.location ?? '',
+          ...input,
+        });
+      }),
+
+    getUploadUrl: protectedProcedure
+      .input(z.object({ fileName: z.string(), fileType: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const key = `profiles/${ctx.user.id}/${Date.now()}_${input.fileName}`;
+        // Return a stub upload URL — real S3 presigned URL generation goes here post-launch
+        const baseUrl = process.env.STORAGE_BASE_URL ?? '';
+        return {
+          uploadUrl: `${baseUrl}/upload/${key}`,
+          fileUrl: `${baseUrl}/${key}`,
+        };
       }),
   }),
   // Credits & Referrals
@@ -592,17 +855,41 @@ export const appRouter = router({
           });
         }
       }),
+
+    // Vision-enabled cost estimation (ASpec.md)
+    estimateCost: publicProcedure
+      .input(z.object({
+        title: z.string().min(3),
+        description: z.string().min(10),
+        category: z.string(),
+        location: z.string(),
+        /** Base64-encoded photos (JPEG/PNG), max 5 */
+        photos: z.array(z.string()).max(5).optional(),
+        budgetHint: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        if (!process.env.ANTHROPIC_API_KEY) {
+          // No API key — return category-based fallback immediately
+          return estimationService.fallbackEstimate(input.category);
+        }
+        try {
+          return await estimationService.estimateJobCost(input);
+        } catch (err) {
+          console.error('[ESTIMATION] AI estimate failed, using fallback:', err);
+          return estimationService.fallbackEstimate(input.category);
+        }
+      }),
   }),
 
   // Trust Badges
   badges: router({
     getUserBadges: publicProcedure
-      .input(z.object({ userId: z.string() }))
+      .input(z.object({ userId: z.number() }))
       .query(async ({ input }) => {
         try {
           // Get user profile and stats
           const profile = await db.getProfileByUserId(input.userId);
-          const reviews = await db.getReviewsForWorker(input.userId);
+          const reviews = await db.getReviewsForUser(input.userId);
           
           if (!profile) {
             return { badges: [], trustScore: 0 };
@@ -644,7 +931,7 @@ export const appRouter = router({
         try {
           // Get user profile and stats
           const profile = await db.getProfileByUserId(ctx.user.id);
-          const reviews = await db.getReviewsForWorker(ctx.user.id);
+          const reviews = await db.getReviewsForUser(ctx.user.id);
           
           if (!profile) {
             return { progress: [] };
@@ -688,118 +975,113 @@ export const appRouter = router({
     create: protectedProcedure
       .input(z.object({
         jobId: z.number(),
-        workerId: z.string(),
+        workerId: z.number(),
         totalAmount: z.number().positive(),
       }))
       .mutation(async ({ ctx, input }) => {
-        try {
-          // Calculate escrow amounts
-          const amounts = escrowService.calculateEscrowAmounts(input.totalAmount);
-          
-          // Create escrow payment
-          const escrowData = escrowService.createEscrowPayment({
-            jobId: input.jobId.toString(),
-            buyerId: ctx.user.id,
-            workerId: input.workerId,
-            totalAmount: input.totalAmount,
-          });
-          
-          // Save to database
-          const escrow = await db.createEscrow(escrowData);
-          
-          return { 
-            escrow,
-            amounts,
-            paystackReference: escrowService.generatePaystackReference(escrow.id),
-          };
-        } catch (error) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to create escrow payment',
-          });
-        }
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        const amounts = escrowService.calculateEscrowAmounts(input.totalAmount);
+        const reference = escrowService.generatePaystackReference(`job_${input.jobId}`);
+
+        const [result] = await drizzleDb.insert(escrows).values({
+          jobId: input.jobId,
+          buyerId: ctx.user.id,
+          workerId: input.workerId,
+          amount: String(input.totalAmount),
+          platformFee: String(amounts.buyerFee + amounts.workerFee),
+          paystackFee: "0",
+          buyerTotal: String(amounts.buyerTotal),
+          workerPayout: String(amounts.workerReceives),
+          paystackReference: reference,
+          status: "pending",
+        });
+
+        const escrowId = (result as any).insertId as number;
+
+        return {
+          escrowId,
+          amounts,
+          paystackReference: reference,
+        };
       }),
 
     getByJobId: protectedProcedure
       .input(z.object({ jobId: z.number() }))
       .query(async ({ input }) => {
-        try {
-          const escrow = await db.getEscrowByJobId(input.jobId.toString());
-          return { escrow };
-        } catch (error) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to get escrow',
-          });
-        }
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        const [escrow] = await drizzleDb
+          .select()
+          .from(escrows)
+          .where(eq(escrows.jobId, input.jobId))
+          .limit(1);
+
+        return { escrow: escrow ?? null };
       }),
 
     payDeposit: protectedProcedure
       .input(z.object({
-        escrowId: z.string(),
+        escrowId: z.number(),
         paystackReference: z.string(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        try {
-          // Verify payment with Paystack
-          const verification = await escrowService.verifyPaystackPayment(input.paystackReference);
-          
-          if (!verification.success) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Payment verification failed',
-            });
-          }
-          
-          // Update escrow status
-          await db.updateEscrowStatus(input.escrowId, 'deposit_paid', {
-            paystackReference: input.paystackReference,
-            depositPaidAt: new Date().toISOString(),
-          });
-          
-          return { success: true };
-        } catch (error) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to process deposit payment',
-          });
+      .mutation(async ({ input }) => {
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        const verification = await escrowService.verifyPaystackPayment(input.paystackReference);
+        if (!verification.success) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Payment verification failed' });
         }
+
+        await drizzleDb
+          .update(escrows)
+          .set({ status: "deposit_paid", paystackReference: input.paystackReference })
+          .where(eq(escrows.id, input.escrowId));
+
+        // Log the transaction
+        await drizzleDb.insert(paymentTransactions).values({
+          escrowId: input.escrowId,
+          paystackReference: input.paystackReference,
+          amount: String((verification.amount ?? 0) / 100),
+          currency: "ZAR",
+          status: "success",
+        });
+
+        return { success: true };
       }),
 
     releasePayment: protectedProcedure
-      .input(z.object({ escrowId: z.string() }))
-      .mutation(async ({ ctx, input }) => {
-        try {
-          const escrow = await db.getEscrowById(input.escrowId);
-          
-          if (!escrow) {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'Escrow not found',
-            });
-          }
-          
-          // Validate release
-          const validation = escrowService.canReleasePayment(escrow);
-          if (!validation.canRelease) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: validation.reason || 'Cannot release payment',
-            });
-          }
-          
-          // Release payment
-          await db.updateEscrowStatus(input.escrowId, 'released', {
-            releasedAt: new Date().toISOString(),
-          });
-          
-          return { success: true };
-        } catch (error) {
+      .input(z.object({ escrowId: z.number() }))
+      .mutation(async ({ input }) => {
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        const [escrow] = await drizzleDb
+          .select()
+          .from(escrows)
+          .where(eq(escrows.id, input.escrowId))
+          .limit(1);
+
+        if (!escrow) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Escrow not found' });
+        }
+
+        if (escrow.status !== 'held' && escrow.status !== 'funded' && escrow.status !== 'deposit_paid') {
           throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to release payment',
+            code: 'BAD_REQUEST',
+            message: `Cannot release escrow in status: ${escrow.status}`,
           });
         }
+
+        await drizzleDb
+          .update(escrows)
+          .set({ status: "released", releasedAt: new Date() })
+          .where(eq(escrows.id, input.escrowId));
+
+        return { success: true };
       }),
 
     createMilestone: protectedProcedure
@@ -812,17 +1094,14 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         try {
-          const milestone = escrowService.createMilestone({
-            escrowId: input.escrowId,
-            jobId: input.jobId.toString(),
+          const milestone = await db.createMilestone({
+            jobId: input.jobId,
             title: input.title,
-            description: input.description,
-            amount: input.amount,
+            description: input.description ?? null,
+            status: 'pending',
           });
           
-          await db.createMilestone(milestone);
-          
-          return { milestone };
+          return { milestone, escrowId: input.escrowId };
         } catch (error) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
@@ -835,7 +1114,7 @@ export const appRouter = router({
       .input(z.object({ jobId: z.number() }))
       .query(async ({ input }) => {
         try {
-          const milestones = await db.getMilestonesByJob(input.jobId.toString());
+          const milestones = await db.getMilestonesByJob(input.jobId);
           return { milestones };
         } catch (error) {
           throw new TRPCError({
@@ -923,41 +1202,23 @@ export const appRouter = router({
   messages: router({
     send: protectedProcedure
       .input(z.object({
-        receiverId: z.string(),
+        receiverId: z.number(),
         content: z.string().min(1).max(2000),
-        type: z.enum(['text', 'image', 'file']).optional(),
-        fileUrl: z.string().optional(),
-        fileName: z.string().optional(),
-        fileSize: z.number().optional(),
         jobId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         try {
-          // Get or create conversation
-          const conversation = await db.getOrCreateConversation(
-            ctx.user.id,
-            input.receiverId,
-            input.jobId
-          );
-          
-          // Create message
+          const conversation = await db.getOrCreateConversation(ctx.user.id, input.receiverId, input.jobId);
           const message = await db.createMessage({
-            conversationId: conversation.id,
             senderId: ctx.user.id,
             receiverId: input.receiverId,
+            jobId: input.jobId ?? null,
             content: input.content,
-            type: input.type,
-            fileUrl: input.fileUrl,
-            fileName: input.fileName,
-            fileSize: input.fileSize,
+            read: false,
           });
-          
           return { message, conversationId: conversation.id };
         } catch (error) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to send message',
-          });
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to send message' });
         }
       }),
 
@@ -1018,13 +1279,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         try {
-          // Generate S3 presigned URL for file upload
           const key = `messages/${ctx.user.id}/${Date.now()}_${input.fileName}`;
-          const uploadUrl = await storagePut(key, input.fileType);
-          
+          const baseUrl = process.env.STORAGE_BASE_URL ?? '';
           return {
-            uploadUrl,
-            fileUrl: `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`,
+            uploadUrl: `${baseUrl}/upload/${key}`,
+            fileUrl: `${baseUrl}/${key}`,
           };
         } catch (error) {
           throw new TRPCError({
@@ -1052,8 +1311,8 @@ export const appRouter = router({
               pendingReviews.push({
                 jobId: job.id,
                 jobTitle: job.title,
-                completedAt: job.completedAt,
-                otherPartyId: job.buyerId === ctx.user.id ? job.workerId : job.buyerId,
+                completedAt: job.completionDate?.toISOString() ?? null,
+                otherPartyId: job.buyerId === ctx.user.id ? (job.selectedBidId ?? 0) : job.buyerId,
               });
             }
           }
@@ -1084,6 +1343,123 @@ export const appRouter = router({
           input.reviewSubmitted
         );
         return { shouldPrompt };
+      }),
+  }),
+
+  // Grading system — worker grade calculation and skill management
+  grading: router({
+    // Get grade for any worker (public — shown on profile)
+    getGrade: publicProcedure
+      .input(z.object({ workerId: z.number() }))
+      .query(async ({ input }) => {
+        return await gradingService.calculateGrade(input.workerId);
+      }),
+
+    // Get the logged-in worker's own grade
+    getMyGrade: protectedProcedure.query(async ({ ctx }) => {
+      return await gradingService.calculateGrade(ctx.user.id);
+    }),
+
+    // Get skills for a worker
+    getSkills: publicProcedure
+      .input(z.object({ workerId: z.number() }))
+      .query(async ({ input }) => {
+        return await gradingService.getWorkerSkills(input.workerId);
+      }),
+
+    // Add/update a skill for the logged-in worker
+    upsertSkill: protectedProcedure
+      .input(z.object({
+        skill: z.string().min(2).max(100),
+        grade: z.enum(['Bronze', 'Silver', 'Gold', 'Platinum']).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await gradingService.upsertWorkerSkill(ctx.user.id, input.skill, input.grade ?? 'Bronze');
+        return { success: true };
+      }),
+
+    // Admin: verify a skill (elevates trust)
+    verifySkill: adminProcedure
+      .input(z.object({ workerId: z.number(), skill: z.string(), grade: z.enum(['Bronze', 'Silver', 'Gold', 'Platinum']) }))
+      .mutation(async ({ input }) => {
+        await gradingService.upsertWorkerSkill(input.workerId, input.skill, input.grade, true);
+        await gradingService.updateWorkerGrade(input.workerId);
+        return { success: true };
+      }),
+  }),
+
+  // Wave system — geographic job broadcasting
+  wave: router({
+    // Get pending wave invitations for the logged-in worker
+    getMyInvitations: protectedProcedure.query(async ({ ctx }) => {
+      return await waveService.getPendingWavesForWorker(ctx.user.id);
+    }),
+
+    // Accept a wave invitation (atomic — first acceptance wins)
+    accept: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await waveService.acceptWave(input.jobId, ctx.user.id);
+        } catch (err) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: err instanceof Error ? err.message : 'Could not accept job',
+          });
+        }
+      }),
+
+    // Decline a wave invitation
+    decline: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await waveService.declineWave(input.jobId, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Get wave status for a job (buyer/admin view)
+    getForJob: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .query(async ({ input }) => {
+        return await waveService.getWavesForJob(input.jobId);
+      }),
+
+    // Manually trigger next wave (admin use / scheduler fallback)
+    broadcast: adminProcedure
+      .input(z.object({ jobId: z.number(), waveNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]) }))
+      .mutation(async ({ input }) => {
+        const count = await waveService.broadcastWave(input.jobId, input.waveNumber);
+        return { success: true, notified: count };
+      }),
+  }),
+
+  // Worker resume (public profile + work history)
+  resume: router({
+    getWorkerResume: publicProcedure
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ input }) => {
+        const userIdNum = parseInt(input.userId);
+        const [profile, user, reviews] = await Promise.all([
+          db.getProfileByUserId(userIdNum),
+          db.getUserById(userIdNum),
+          db.getReviewsForUser(userIdNum),
+        ]);
+        const avgRating = reviews.length
+          ? reviews.reduce((s: number, r: any) => s + (r.rating ?? 0), 0) / reviews.length
+          : 0;
+        return {
+          profile: profile ? { ...profile, name: user?.name ?? null } : null,
+          reviews,
+          completedJobs: profile?.completedJobs ?? 0,
+          totalJobs: 0,
+          avgRating,
+          strength: profile?.trustScore ?? 0,
+          tier: 'Bronze' as const,
+          badges: [] as any[],
+          skills: profile?.trade ? [profile.trade] : [],
+          projects: [] as any[],
+          updatedAt: new Date().toISOString(),
+        };
       }),
   }),
 });

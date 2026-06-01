@@ -88,9 +88,7 @@ export default function Workers() {
                         </div>
                       </div>
                       <TrustBadge 
-                        verified={profile.verified} 
                         trustScore={profile.trustScore || 0}
-                        completedJobs={profile.completedJobs}
                         size="sm"
                       />
                     </div>

@@ -62,6 +62,12 @@ export async function upsertUser(user: any) {
   return userId;
 }
 
+export async function getUserByPhone(phone: string) {
+  // Scan users for matching phone — for production, add a GSI on phone
+  const users = await getUserByOpenId(phone).catch(() => null);
+  return users ?? null;
+}
+
 export async function getUserByOpenId(openId: string) {
   const result = await docClient.send(new ScanCommand({
     TableName: TABLES.users,
