@@ -15,7 +15,14 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _anthropic;
+}
 const VISION_MODEL = 'claude-sonnet-4-5';
 const TEXT_MODEL = process.env.AI_MODEL_CLAUDE || 'claude-3-haiku-20240307';
 
@@ -143,7 +150,7 @@ export async function estimateJobCost(input: EstimationInput): Promise<Estimatio
   // Attempt vision-enabled estimate first
   if (hasPhotos) {
     try {
-      const message = await anthropic.messages.create({
+      const message = await getAnthropic().messages.create({
         model: VISION_MODEL,
         max_tokens: 1500,
         system: SYSTEM_PROMPT,
@@ -162,7 +169,7 @@ export async function estimateJobCost(input: EstimationInput): Promise<Estimatio
   }
 
   // Text-only fallback
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: TEXT_MODEL,
     max_tokens: 1500,
     system: SYSTEM_PROMPT,

@@ -1,8 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _anthropic;
+}
 
 const MODEL = process.env.AI_MODEL_CLAUDE || 'claude-3-haiku-20240307';
 const MAX_TOKENS = parseInt(process.env.AI_MAX_TOKENS || '2000');
@@ -40,7 +45,7 @@ Keep it concise (2-3 paragraphs max) and professional. Use South African English
 Return ONLY the enhanced description, no preamble or explanation.`;
 
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       temperature: TEMPERATURE,
@@ -98,7 +103,7 @@ Keep it concise (2-3 paragraphs) and persuasive. Use South African English.
 Return ONLY the proposal text, no preamble or explanation.`;
 
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       temperature: TEMPERATURE,
@@ -157,7 +162,7 @@ Provide a helpful, concise answer. If the question is about:
 Keep responses friendly, professional, and under 150 words. Use South African English.`;
 
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: MODEL,
       max_tokens: 500,
       temperature: 0.7,
